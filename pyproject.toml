@@ -1,0 +1,25 @@
+[tool.poetry]
+name        = "procgen-companion"
+version     = "0.1.0"
+description = "An AnimalAI companion tool for procedural generation of task varations."
+authors     = ["Wout Schellaert <wout@schellaert.org>"]
+license     = "MIT"
+readme      = "README.md"
+packages    = [{ include = "procgen_companion" }]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+PyYAML = "^6.0"
+
+[tool.poetry.scripts]
+procgen = 'procgen_companion.procgen:run'
+
+[tool.poetry.group.dev.dependencies]
+pytest       = "^7.2.0"
+mypy         = "^0.991"
+autopep8     = "^2.0.0"
+types-PyYAML = "^6.0.12.2"
+
+[build-system]
+requires      = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
