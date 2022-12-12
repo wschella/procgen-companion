@@ -102,6 +102,9 @@ def procgen(args: Args):
 
     # Generate sample based variations
     for i, variation in enumerate([samplerec(template) for _ in range(10)]):
+        # TODO: Second pass to fix if's
+
+        print(f"Variation {i+1}/10")
         print(f"Variation {i+1}/{count}")
         filename = f"{args.file_path.stem}_{i+1:05d}.yaml"
         with open(output_dir / filename, "w") as f:
