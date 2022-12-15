@@ -78,21 +78,23 @@ But `!ProcList` does not support nested `!Proc`-tags, i.e. the items of the list
 - !Vector3 { x: 20, y: 1, z: 10 }
 ```
 
-If only one field needs to vary, you could e.g. do this:
+You can also perfectly do this instead:
 
 ```yaml
-!Vector3 { x: 20, y: 1, z: !ProcList [1, 5, 10] }
+!Vector3 { x: !ProcList [2, 4, 6], y: 1, z: !ProcList [5, 10, 15] }
 ```
+
+This defines 3x3=9 possible variations: `!Vector3 {x: 2, y: 1, z: 5}`, `!Vector3 {x: 2, y: 1, z: 10}`, `!Vector3 {x: 2, y: 1, z: 15}`, and the same for `x: 4` and `x: 6`.
 
 Note: Following is still under consideration.
 
 ```yaml
-!ProcListTagged
-- tag: far
+!ProcListLabelled
+- label: far
   value: !Vector3 { x: 20, y: 0, z: 1 }
-- tag: medium
+- label: medium
   value: !Vector3 { x: 20, y: 1, z: 5 }
-- tag: close
+- label: close
   value: !Vector3 { x: 20, y: 1, z: 10 }
 ```
 
@@ -112,17 +114,15 @@ The base `!Vector3` will not be included in the possible options. If you want th
 
 ```yaml
 !ProcVector3Scaled
-base: !Vector3 { x: 1, y: 1, z: 1 }
+base: !Vector3 { x: 2, y: 1, z: 1 }
 scales: [1, 2, 3, 4]
 ```
 
-Another option, especially useful when you want a lot of different scales and you don't care much about it's exact format is the example below. The range is inclusive here. So the example is identical to the one above.
+The `base` is an optional argument. If it is not present, the unit vector will be assumed, i.e. `!Vector3 { x: 1, y: 1, z: 1}`. The following is thus also valid:
 
 ```yaml
 !ProcVector3Scaled
-base: !Vector3 { x: 1, y: 1, z: 1 }
-range: [1, 4]
-amount: 4
+scales: [1, 2, 3, 4]
 ```
 
 ### Condition the selection of variations on the values of other fields
@@ -146,7 +146,7 @@ Here (last case): if x=3 and z between 10 and 20 (inclusive), then we take 150.
 - The `variable` field can be a string, or a list of strings. Multiple strings indicate there multiple variables we care about. Each string is a reference to a specific field in the generated yaml file (see below).
 - The `cases` field is always list. If `variable` is a list, `cases` must be a list of lists, and an inner list need sto match the len gth of `variable`. The outer list can be any length, each element represent a "case". It can be of length 1 (representing a single "if", with `default` acting as the "else".)
 - The `then` field results is always a list. Its length equals the length of the outer list of the `cases` field.
-- The `default` is always a scalar, i.e. a number, a `!Vector3`, etc...
+- The `default` is always a scalar, i.e. a number, a `!Vector3`, etc. It is an optional argument. If it is not provided, the tool will throw an error and stop execution when any variables take on a value that is not in the list of cases.
 
 TODO: On references. Generated yaml file. First part of the dot separated must refer to an `!Item` with the corresponding `id` field.
 
@@ -171,6 +171,13 @@ value: [agent.positions.0.x, agents.positions.0.z]
 cases: [[1, !R [5, 10]]]
 then: [180]
 default: 0
+
+# With three cases, and no default.
+# The tool will throw an error and stop if agent.positions.0.x takes values other than those specified, e.g. 15.
+!ProcIf
+value: agent.positions.0.x
+cases: [1, !R [2, 9], 10]
+then: [0, 90, 180]
 ```
 
 ### Make the same choice for a list of values
@@ -213,6 +220,6 @@ item:
   - !ProcColor 10
 ```
 
-### Specifying tags that should be included in the filename
+### Specifying labels that should be included in the filename
 
 NOTE: Under discussion.
