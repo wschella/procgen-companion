@@ -86,18 +86,6 @@ You can also perfectly do this instead:
 
 This defines 3x3=9 possible variations: `!Vector3 {x: 2, y: 1, z: 5}`, `!Vector3 {x: 2, y: 1, z: 10}`, `!Vector3 {x: 2, y: 1, z: 15}`, and the same for `x: 4` and `x: 6`.
 
-Note: Following is still under consideration.
-
-```yaml
-!ProcListLabelled
-- label: far
-  value: !Vector3 { x: 20, y: 0, z: 1 }
-- label: medium
-  value: !Vector3 { x: 20, y: 1, z: 5 }
-- label: close
-  value: !Vector3 { x: 20, y: 1, z: 10 }
-```
-
 ### Generate random colors
 
 This will generate a new color each time, until 10 different ones have been picked. The colors will be picked from a fixed list of colors. If the amount specified here is larger than the list of colors we use, we will throw an error so you can fix it or ask us to create more colors.
@@ -222,4 +210,44 @@ item:
 
 ### Specifying labels that should be included in the filename
 
-NOTE: Under discussion.
+If you want to change the filename depending on some of the generated values, you can use can add a `labels` field to `!ProcIf` and`!ProcVector3Scaled`, or you can use the new `!ProcListLabelled`.
+
+Make sure that your labels are filename friendly (e.g. no colons).
+
+```yaml
+!ProcIf
+variable: [agent.positions.0.x, agents.positions.0.z]
+cases: [[1, 5], [1, 7], [3, !R [10, 20]]]
+then: [90, 120, 150]
+labels: [dist_close, dist_med, dist_far]
+default: 0
+# Currently no support for a default label yet.
+
+!ProcVector3Scaled
+base: !Vector3 { x: 2, y: 1, z: 1 }
+scales: [1, 2, 3]
+labels: [size_small, size_med, size_large]
+
+!ProcListLabelled
+- label: dist_far
+  value: !Vector3 { x: 20, y: 0, z: 1 }
+- label: dist_medium
+  value: !Vector3 { x: 20, y: 1, z: 5 }
+- label: dist_close
+  value: !Vector3 { x: 20, y: 1, z: 10 }
+```
+
+There is also a new special section `proc_labels` in the beginning of the yaml file, which will not be present in the generate AnimalAI config, but allows you to specify independent labels. You have to use `!ProcIfLabels`, which works exactly like `!ProcIf`, but it will have the corresponding `then` value included in the filename.
+
+```yaml
+!ArenaConfig
+proc_labels:
+  - !ProcIfLabels
+    variable: [agent.positions.0.x, agents.positions.0.z]
+    cases: [[1, 5], [1, 7], [3, !R [10, 20]]]
+    labels: [dist_far, dist_close, dist_medium]
+    default: dist_default # Optional
+arenas:
+  0: !Arena
+    items: # ...
+```
