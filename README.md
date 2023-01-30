@@ -113,6 +113,46 @@ The `base` is an optional argument. If it is not present, the unit vector will b
 scales: [1, 2, 3, 4]
 ```
 
+### Make the same choice for a list of values
+
+You can use `!ProcRepeatChoice` when for example three walls need to vary their color, but it must always be the same color, i.e. they must vary at the same time. This tag will produce a list of values, each of them identical.
+The `value` field can contain any valid yaml including (nested) `!Proc`-tags, as that is what is designed for. Any choice made in the `!Proc` tags will be copied.
+It is allowed for the `value` field to not contain any `!Proc` tags. Everything works just the same.
+
+```yaml
+colors: !ProcRepeatChoice
+  amount: 3 # The amount of repetitions, i.e. the number of elements in the resulting list.
+  value: !ProcColor 5 # The amount of different values a list item can take.
+
+# One possible realization of the possible 5 would like like this:
+colors:
+  - !RGB {r: 128, g: 128, b: 128 }
+  - !RGB {r: 128, g: 128, b: 128 }
+  - !RGB {r: 128, g: 128, b: 128 }
+```
+
+### Restricting variations
+
+You can use `!ProcRestrictCombinations` when you know some part of the yaml file is responsible for many different possibilities, but you want to limit the total, without restricting any of the individual choices.
+An example is when seven walls need to vary their color, you don't want it to be the same color, and you only want 25 different combinations in total.
+This works by uniformly random sampling all the `!Proc`-tags nested inside.
+
+The `item` field does _not_ need to be a list as is the case right now. It can be anything.
+
+```yaml
+!ProcRestrictCombinations
+amount: 25 # Number of possible values this tag will generate.
+item:
+  - !ProcColor 10
+  - !ProcColor 10
+  - !ProcColor 10
+  - !ProcColor 10
+  - !ProcColor 10
+  - !ProcColor 10
+  - !ProcColor 10
+  - !ProcColor 10
+```
+
 ### Condition the selection of variations on the values of other fields
 
 ```yaml
@@ -168,47 +208,7 @@ cases: [1, !R [2, 9], 10]
 then: [0, 90, 180]
 ```
 
-### Make the same choice for a list of values
-
-You can use `!ProcRepeatChoice` when for example three walls need to vary their color, but it must always be the same color, i.e. they must vary at the same time. This tag will produce a list of values, each of them identical.
-The `value` field can contain any valid yaml including (nested) `!Proc`-tags, as that is what is designed for. Any choice made in the `!Proc` tags will be copied.
-It is allowed for the `value` field to not contain any `!Proc` tags. Everything works just the same.
-
-```yaml
-colors: !ProcRepeatChoice
-  amount: 3 # The amount of repetitions, i.e. the number of elements in the resulting list.
-  value: !ProcColor 5 # The amount of different values a list item can take.
-
-# One possible realization of the possible 5 would like like this:
-colors:
-  - !RGB {r: 128, g: 128, b: 128 }
-  - !RGB {r: 128, g: 128, b: 128 }
-  - !RGB {r: 128, g: 128, b: 128 }
-```
-
-### Restricting variations
-
-You can use `!ProcRestrictCombinations` when you know some part of the yaml file is responsible for many different possibilities, but you want to limit the total, without restricting any of the individual choices.
-An example is when seven walls need to vary their color, you don't want it to be the same color, and you only want 25 different combinations in total.
-This works by uniformly random sampling all the `!Proc`-tags nested inside.
-
-The `item` field does _not_ need to be a list as is the case right now. It can be anything.
-
-```yaml
-!ProcRestrictCombinations
-amount: 25 # Number of possible values this tag will generate.
-item:
-  - !ProcColor 10
-  - !ProcColor 10
-  - !ProcColor 10
-  - !ProcColor 10
-  - !ProcColor 10
-  - !ProcColor 10
-  - !ProcColor 10
-  - !ProcColor 10
-```
-
-### Specifying labels that should be included in the filename
+## Labelling filenames
 
 If you want to change the filename depending on some of the generated values, you can use can add a `labels` field to `!ProcIf` and`!ProcVector3Scaled`, or you can use the new `!ProcListLabelled`.
 
