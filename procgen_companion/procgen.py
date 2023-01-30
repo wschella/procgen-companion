@@ -19,6 +19,8 @@ def run():
     parser.add_argument('path', type=Path)
     parser.add_argument('-m', '--max', type=int, default=10000)
     parser.add_argument('-s', '--seed', type=int, default=1234)
+    parser.add_argument('--sample', type=int)
+    parser.add_argument('-o', '--output', type=Path)
     args = parser.parse_args()
 
     # Start procgen
@@ -30,6 +32,8 @@ class Args:
     path: Path
     max: int
     seed: int
+    output: Optional[Path] = None
+    sample: Optional[int] = None
 
 
 def procgen(args: Args):
@@ -80,17 +84,18 @@ def procgen(args: Args):
         print(explain_count_recursive(template))
         return
 
-    # Test
-    yaml.dump(template, open("tmp/example.yaml", "w"),
-              Dumper=yaml.SafeDumper, default_flow_style=False)
-
-    output_dir = Path(f"tmp/{args.path.stem}_generations/")
+    output_dir = Path(f"tmp/{args.path.stem}_generations/") if args.output is None else args.output
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Generate sample based variations
-    # amount = min(count, args.max)
-    amount = min(count, 10)
-    for i, variation in enumerate([sample_recursive(template) for _ in range(amount)]):
+    # Sample or iterate over all possible variations
+    if args.sample is not None:
+        amount = min(count, args.sample, args.max)
+        iterator = (sample_recursive(template) for _ in range(amount))
+    else:
+        amount = min(count, args.max)
+        iterator = (iterate_recursive(template) for _ in range(count))
+
+    for i, variation in enumerate(iterator):
         # TODO: Second pass to fix if's
 
         print(f"Variation {i+1}/{amount}")
@@ -122,6 +127,11 @@ def get_node_handler(node: Any) -> Type[handlers.NodeHandler]:
     raise ValueError(f"Could not find a node class for {node}")
 
 
+def iterate_recursive(node: Any) -> Any:
+    handler = get_node_handler(node)
+    # return handler.iterate(node, iterate_recursive)
+
+
 def sample_recursive(node: Any) -> Any:
     handler = get_node_handler(node)
     return handler.sample(node, sample_recursive)
@@ -133,15 +143,31 @@ def count_recursive(node: Any):
 
 
 def explain_count_recursive(node: Any):
+    """
+    Generate a string explaining where the number of variations comes from.
+    For example output is: 6#ProcList x 5#ProcColor x 4#ProcVector3Scaled,
+    which generates 6 * 5 * 4 = 120 variations.
+    """
     handler = get_node_handler(node)
     if issubclass(handler, handlers.StaticNodeHandler):
         children = handler.children(node)
         explanations = [explain_count_recursive(child) for child in children]
         return " x ".join(explanation for explanation in explanations if explanation)
     elif issubclass(handler, handlers.ProcGenNodeHandler):
+        if issubclass(handler, handlers.ProcIf):
+            return ""
         return f"{handler.count(node, count_recursive)}#{node.tag}"
     else:
         raise TypeError(f"Programmer error. Unknown type {type(handler)} {handler}.")
+
+
+def resolve_conditional(variation: tags.ArenaConfig) -> tags.ArenaConfig:
+    """
+    Resolve conditional nodes, i.e. !ProcIf, in the variation.
+    All other values should now be concrete and filled in.
+    """
+    # TODO: Implement
+    return variation
 
 
 def custom_list_representer(dumper, data):
