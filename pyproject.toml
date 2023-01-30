@@ -8,15 +8,16 @@ readme      = "README.md"
 packages    = [{ include = "procgen_companion" }]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.11"
 PyYAML = "^6.0"
 
 [tool.poetry.scripts]
 procgen = 'procgen_companion.procgen:run'
 
 [tool.poetry.group.dev.dependencies]
-pytest       = "^7.2.0"
-mypy         = "^0.991"
+pytest = "^7.2.0"
+# mypy         = "^0.991" # Does not support typing.Self yet
+mypy         = { git = "https://github.com/python/mypy.git", rev = "cf2e404" }
 autopep8     = "^2.0.0"
 types-PyYAML = "^6.0.12.2"
 

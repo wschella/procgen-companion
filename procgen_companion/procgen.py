@@ -2,15 +2,12 @@ from typing import *
 from pathlib import Path
 from dataclasses import dataclass
 import argparse
-import functools
-import operator
 import random
-from copy import deepcopy
 
 import yaml
 
 import procgen_companion.tags as tags
-import procgen_companion.util as util
+import procgen_companion.handlers as handlers
 
 
 def run():
@@ -19,8 +16,7 @@ def run():
         prog="procgen-companion",
         description="Procedurally generate variations of an AnimalAI task definition based on a template file."
     )
-    parser.add_argument('file_path', type=Path)
-    parser.add_argument('-t', '--template-path', type=Path)
+    parser.add_argument('path', type=Path)
     parser.add_argument('-m', '--max', type=int, default=10000)
     parser.add_argument('-s', '--seed', type=int, default=1234)
     args = parser.parse_args()
@@ -31,31 +27,21 @@ def run():
 
 @dataclass
 class Args:
-    file_path: Path
-    template_path: Optional[Path]
+    path: Path
     max: int
     seed: int
 
 
 def procgen(args: Args):
 
-    # Handle faulty paths explicitly
-    if not args.file_path.exists():
-        raise FileNotFoundError(args.file_path)
-    if args.template_path is not None and not args.template_path.exists():
-        raise FileNotFoundError(args.template_path)
-
-    # Look for template file with the same name as the default
-    template_path = args.template_path or args.file_path.with_suffix(".template.yaml")
-    if not template_path.exists():
-        print("Could not find a corresponding .template.yaml file")
-        raise FileNotFoundError(template_path)
+    if not args.path.exists():
+        raise FileNotFoundError(args.path)
 
     # Add constructors and representers for the custom YAML tags
     for tag in tags.GET_ANIMAL_AI_TAGS() + tags.GET_PROC_GEN_TAGS():
         tag_name: str = f"!{tag.tag}"  # type: ignore
         yaml.SafeLoader.add_constructor(tag_name, tag.construct)
-        yaml.SafeDumper.add_representer(tag, tag.represent) # type: ignore
+        yaml.SafeDumper.add_representer(tag, tag.represent)  # type: ignore
 
     # Add custom list representer for collapsing lists of scalars
     yaml.SafeDumper.add_representer(list, custom_list_representer)
@@ -79,163 +65,94 @@ def procgen(args: Args):
     #   - Sampling a random variation
     #   - Returning a list of children
     # - Python product consumes the full iterable before returning the first element.
-    
-    template: tags.ArenaConfig = yaml.load(template_path.read_text(), Loader=yaml.SafeLoader)
 
-    count = countrec(template)
+    template: tags.ArenaConfig = yaml.load(args.path.read_text(), Loader=yaml.SafeLoader)
+
+    count = count_recursive(template)
+    print(f"Total possible variations: {count}")
+    print(explain_count_recursive(template))
+
     if count > args.max:
         print(f"Too many variations. Stopping. "
               f"The total number of possible variations is {count}, "
               f"while the maximum is {args.max}, unless manually set with '--max'. "
               f"Try reducing choices.")
-        print(explain_countrec(template))
+        print(explain_count_recursive(template))
         return
 
-    print(f"Generating possible combinations: {count}")
-    print(explain_countrec(template))
-
     # Test
-    yaml.dump(template, open("tmp/example.yaml", "w"), Dumper=yaml.SafeDumper, default_flow_style=False)
+    yaml.dump(template, open("tmp/example.yaml", "w"),
+              Dumper=yaml.SafeDumper, default_flow_style=False)
 
-    output_dir = Path(f"tmp/{args.file_path.stem}_generations/")
+    output_dir = Path(f"tmp/{args.path.stem}_generations/")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Generate sample based variations
-    for i, variation in enumerate([samplerec(template) for _ in range(10)]):
+    # amount = min(count, args.max)
+    amount = min(count, 10)
+    for i, variation in enumerate([sample_recursive(template) for _ in range(amount)]):
         # TODO: Second pass to fix if's
 
-        print(f"Variation {i+1}/10")
-        print(f"Variation {i+1}/{count}")
-        filename = f"{args.file_path.stem}_{i+1:05d}.yaml"
+        print(f"Variation {i+1}/{amount}")
+        filename = f"{args.path.stem}_{i+1:05d}.yaml"
         with open(output_dir / filename, "w") as f:
             yaml.dump(variation, f, default_flow_style=False, Dumper=yaml.SafeDumper)
 
-PROC_GEN_TAGS = tuple(tags.GET_PROC_GEN_TAGS())
-SCALARS = (str, int, float)
 
-def samplerec(node: Any) -> Any:
-    if not isinstance(node, PROC_GEN_TAGS):
-        if isinstance(node, list):
-            return [samplerec(child) for child in node]
-        elif isinstance(node, dict):
-            return {k: samplerec(v) for k, v in node.items()}
-        elif isinstance(node, SCALARS):
-            return node
-        elif isinstance(node, tags.CustomMappingTag):
-            for k, v in node.__dict__.items():
-                setattr(node,k, samplerec(v))
-            return node
-        elif isinstance(node, tags.CustomSequenceTag):
-            for i, child in enumerate(node):
-                node[i] = samplerec(child)
-            return node
-        elif isinstance(node, tags.CustomScalarTag):
-            return node
-    else:
-        if isinstance(node, tags.ProcColor):
-            return to_color(random.choice(util.COLORS))
-        elif isinstance(node, tags.ProcIf):
-            # TODO: Really implement
-            return samplerec(node.then) if random.random() < 0.5 else samplerec(node.else_)
-        elif isinstance(node, tags.ProcList):
-            return random.choice(node.options)
-        elif isinstance(node, tags.ProcRepeatChoice):
-            choice = samplerec(node.value)
-            return [deepcopy(choice) for _ in range(node.amount - 1)] + [choice]
-        elif isinstance(node, tags.ProcRestrictCombinations):
-            return samplerec(node.item)
-        elif isinstance(node, tags.ProcVector3Scaled):
-            scales = util.linspace(node.range[0], node.range[1], node.amount, endpoint=True)
-            scale = random.choice(scales)
-            return scale_vector3(node.base, scale)
-        else:
-            raise TypeError(f"Programmer error. Unknown tag: {node}")
+HANDLERS: List[Type[handlers.NodeHandler]] = [
+    handlers.PlainSequence,
+    handlers.PlainMapping,
+    handlers.PlainScalar,
+    handlers.AnimalAIScalar,
+    handlers.AnimalAIMapping,
+    handlers.AnimalAISequence,
+    handlers.ProcList,
+    handlers.ProcColor,
+    handlers.ProcVector3Scaled,
+    handlers.ProcRepeatChoice,
+    handlers.ProcRestrictCombinations,
+    handlers.ProcIf,
+]
 
-def scale_vector3(vector: tags.Vector3, scale: float) -> tags.Vector3:
-    return tags.Vector3(x=vector.x * scale, y=vector.y * scale, z=vector.z * scale)
 
-def to_color(color: Tuple[int, int, int]) -> tags.RGB:
-    return tags.RGB(r=color[0],g=color[1], b=color[2])
+def get_node_handler(node: Any) -> Type[handlers.NodeHandler]:
+    for handler in HANDLERS:
+        if handler.can_handle(node):
+            return handler
+    raise ValueError(f"Could not find a node class for {node}")
 
-def countrec(node: Any):
 
-    if not isinstance(node, PROC_GEN_TAGS):
-        children = children_of(node)
-        return functools.reduce(
-            operator.mul,
-            (countrec(child) for child in children), 
-            1)
-    
-    if isinstance(node, tags.ProcIf):
-        # !ProcIf does not increase the number of variations. It only some values in existing ones.
-        return 1
-    elif isinstance(node, tags.ProcRepeatChoice):
-        return countrec(node.value) # Take over the number of variations in the choice to be repeated
-    elif isinstance(node, tags.ProcList):
-        return len(node.options)
-    elif isinstance(node, tags.ProcColor):
-        return node.amount
-    elif isinstance(node, tags.ProcRestrictCombinations):
-        return node.amount
-    elif isinstance(node, tags.ProcVector3Scaled):
-        return node.amount
-    else:
-        raise TypeError(f"Programmer error. Unknown type {type(node)} {node}.")
+def sample_recursive(node: Any) -> Any:
+    handler = get_node_handler(node)
+    return handler.sample(node, sample_recursive)
 
-def explain_countrec(node: Any):
-    if not isinstance(node, PROC_GEN_TAGS):
-        children = children_of(node)
-        explanations = [explain_countrec(child) for child in children]
+
+def count_recursive(node: Any):
+    handler = get_node_handler(node)
+    return handler.count(node, count_recursive)
+
+
+def explain_count_recursive(node: Any):
+    handler = get_node_handler(node)
+    if issubclass(handler, handlers.StaticNodeHandler):
+        children = handler.children(node)
+        explanations = [explain_count_recursive(child) for child in children]
         return " x ".join(explanation for explanation in explanations if explanation)
-
-    if isinstance(node, tags.ProcColor):
-        return f"{node.amount}#Colors"
-    elif isinstance(node, tags.ProcIf):
-        return f"{1}#If"
-    elif isinstance(node, tags.ProcList):
-        return f"{len(node.options)}#ListOptions"
-    elif isinstance(node, tags.ProcRepeatChoice):
-        return f"{countrec(node.value)}#RepeatChoice"
-    elif isinstance(node, tags.ProcRestrictCombinations):
-        return f"{node.amount}#RestrictCombinations"
-    elif isinstance(node, tags.ProcVector3Scaled):
-        return f"{node.amount}#Vector3Scaled"
+    elif issubclass(handler, handlers.ProcGenNodeHandler):
+        return f"{handler.count(node, count_recursive)}#{node.tag}"
     else:
-        raise TypeError(f"Programmer error. Unknown type {type(node)} {node}.")
-
-def children_of(node: Any) -> List[Any]:
-    """
-    Assumes the the input not is not a ProcGen tag.
-    """
-    if isinstance(node, list):
-        return node
-    elif isinstance(node, dict):
-        return list(node.values())
-    elif isinstance(node, SCALARS):
-        return []
-    elif isinstance(node, tags.CustomMappingTag):
-        return list(node.__dict__.values())
-    elif isinstance(node, tags.CustomSequenceTag):
-        return list(node)
-    elif isinstance(node, tags.CustomScalarTag):
-        return []
-    else:
-        raise TypeError(f"Programmer error. Unknown type {type(node)} {node}.")
+        raise TypeError(f"Programmer error. Unknown type {type(handler)} {handler}.")
 
 
-# Variations
-# - Leaf nodes
-#   -> return self
-# - Non-leaf nodes, # lets assume two children
-# We must know many elements there are, to know when we are done? Or return None instead.
-#  Generate all combinations of children
-#  - Generate the first variant of each child
-#  -
 def custom_list_representer(dumper, data):
-    if not all(isinstance(item, (str, int, float)) for item in data):
-        return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=False)
-    else:
+    """
+    Custom representer for lists that uses flow (short) style if all items are scalars.
+    """
+    if all(isinstance(item, (str, int, float)) for item in data):
         return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True)
+    else:
+        return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=False)
+
 
 if __name__ == "__main__":
     run()
