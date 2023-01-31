@@ -19,8 +19,10 @@ def run():
     parser.add_argument('path', type=Path)
     parser.add_argument('-m', '--max', type=int, default=10000)
     parser.add_argument('-s', '--seed', type=int, default=1234)
-    parser.add_argument('--sample', type=int)
     parser.add_argument('-o', '--output', type=Path)
+    parser.add_argument('--prevent-template-copy', type=bool, default=False)
+    parser.add_argument('--head', type=int)
+    parser.add_argument('--sample', type=int)
     args = parser.parse_args()
 
     # Start procgen
@@ -32,7 +34,9 @@ class Args:
     path: Path
     max: int
     seed: int
+    prevent_template_copy: bool = False
     output: Optional[Path] = None
+    head: Optional[int] = None
     sample: Optional[int] = None
 
 
@@ -72,32 +76,43 @@ def procgen(args: Args):
 
     template: tags.ArenaConfig = yaml.load(args.path.read_text(), Loader=yaml.SafeLoader)
 
-    count = count_recursive(template)
-    print(f"Total possible variations: {count}")
+    n_variations = count_recursive(template)
+    print(f"Total possible variations: {n_variations}")
     print(explain_count_recursive(template))
 
-    if count > args.max:
+    if n_variations > args.max and (args.sample is None and args.head is None):
         print(f"Too many variations. Stopping. "
-              f"The total number of possible variations is {count}, "
-              f"while the maximum is {args.max}, unless manually set with '--max'. "
-              f"Try reducing choices.")
+              f"The total number of possible variations is {n_variations}, "
+              f"while the maximum is {args.max}. "
+              f"Try reducing choices, increasing --max, or using --head.")
         print(explain_count_recursive(template))
         return
 
-    output_dir = Path(f"tmp/{args.path.stem}_generations/") if args.output is None else args.output
+    # Prepare output directory
+    output_dir = Path(f"tmp/{args.path.stem}_variations/") if args.output is None else args.output
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Copy the template to the output directory
+    if not args.prevent_template_copy:
+        yaml.dump(template, open(output_dir / "template.yaml", "w"),
+                  default_flow_style=False, Dumper=yaml.SafeDumper)
 
     # Sample or iterate over all possible variations
     if args.sample is not None:
-        amount = min(count, args.sample, args.max)
+        assert args.head is None, "Cannot use both --head and --sample"
+        amount = min(n_variations, args.sample, args.max)
         iterator = (sample_recursive(template) for _ in range(amount))
     else:
-        amount = min(count, args.max)
-        iterator = (iterate_recursive(template) for _ in range(count))
+        head = args.head if args.head is not None else n_variations
+        amount = min(n_variations, head, args.max)
+        full_iterator = iterate_recursive(template)
+        iterator = (next(full_iterator) for _ in range(amount))
 
+    # Generate all requested variations
     for i, variation in enumerate(iterator):
         # TODO: Second pass to fix if's
 
+        # Save variation to file
         print(f"Variation {i+1}/{amount}")
         filename = f"{args.path.stem}_{i+1:05d}.yaml"
         with open(output_dir / filename, "w") as f:
@@ -127,9 +142,9 @@ def get_node_handler(node: Any) -> Type[handlers.NodeHandler]:
     raise ValueError(f"Could not find a node class for {node}")
 
 
-def iterate_recursive(node: Any) -> Any:
+def iterate_recursive(node: Any) -> Iterator[Any]:
     handler = get_node_handler(node)
-    # return handler.iterate(node, iterate_recursive)
+    return handler.iterate(node, iterate_recursive)
 
 
 def sample_recursive(node: Any) -> Any:
@@ -172,9 +187,10 @@ def resolve_conditional(variation: tags.ArenaConfig) -> tags.ArenaConfig:
 
 def custom_list_representer(dumper, data):
     """
-    Custom representer for lists that uses flow (short) style if all items are scalars.
+    Custom representer for lists that uses flow style (i.e. short inline style)
+    if all items are scalars or !R ranges.
     """
-    if all(isinstance(item, (str, int, float)) for item in data):
+    if all(isinstance(item, (str, int, float, tags.Range)) for item in data):
         return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True)
     else:
         return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=False)

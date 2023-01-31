@@ -44,6 +44,8 @@ field1: 120
 field2: 180
 ```
 
+The template used will also be copied `example_variations/template.yaml`.
+
 Every valid AnimalAI .yaml file is also a valid procgen-companion template.
 All the fields you don't want to procedurally generate will be ignored and copied.
 

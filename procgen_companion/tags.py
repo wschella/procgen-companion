@@ -87,6 +87,8 @@ class CustomMappingTag(CustomTag):
 
 
 class CustomSequenceTag(CustomTag, Iterable[Any]):
+    flow_style = 'block'
+
     @abstractmethod
     def __init__(self, value: Any) -> None:
         pass
@@ -98,7 +100,7 @@ class CustomSequenceTag(CustomTag, Iterable[Any]):
 
     @classmethod
     def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:
-        return dumper.represent_sequence(f"!{cls.tag}", data)
+        return dumper.represent_sequence(f"!{cls.tag}", data, flow_style=(cls.flow_style == 'flow'))
 
     @abstractmethod
     def __setitem__(self, key: int, value: Any) -> None:
@@ -185,8 +187,9 @@ class RGB(CustomMappingTag, AnimalAITag):
 # ------------ Exception ------------
 
 
-class Range(CustomSequenceTag, ProcGenTag):
+class Range(CustomSequenceTag):
     tag: str = "R"
+    flow_style: str = 'flow'
 
     min: float
     max: float
@@ -234,6 +237,7 @@ class ProcColor(CustomScalarTag, ProcGenTag):
     amount: int
 
     def __init__(self, amount: int):
+        # TODO: Check when amount is higher than the colors available.
         self.amount = int(amount)
 
 
