@@ -3,11 +3,13 @@ from pathlib import Path
 from dataclasses import dataclass
 import argparse
 import random
+import itertools
 
 import yaml
 
 import procgen_companion.tags as tags
 import procgen_companion.handlers as handlers
+import procgen_companion.util as util
 
 
 def run():
@@ -51,8 +53,12 @@ def procgen(args: Args):
         yaml.SafeLoader.add_constructor(tag_name, tag.construct)
         yaml.SafeDumper.add_representer(tag, tag.represent)  # type: ignore
 
+    # Add custom representer for MutablePlaceholder
+    yaml.SafeDumper.add_representer(
+        util.MutablePlaceholder, util.MutablePlaceholder.represent)  # type: ignore
+
     # Add custom list representer for collapsing lists of scalars
-    yaml.SafeDumper.add_representer(list, custom_list_representer)
+    yaml.SafeDumper.add_representer(list, util.custom_list_representer)
 
     # Set Python random seed for hopefully deterministic generation
     random.seed(args.seed)
@@ -105,12 +111,19 @@ def procgen(args: Args):
     else:
         head = args.head if args.head is not None else n_variations
         amount = min(n_variations, head, args.max)
-        full_iterator = iterate_recursive(template)
+        full_iterator = iterate_variations_recursive(template)
         iterator = (next(full_iterator) for _ in range(amount))
 
     # Generate all requested variations
     for i, variation in enumerate(iterator):
-        # TODO: Second pass to fix if's
+        # We need a second pass to fix !ProcIf's, as they need to access the final variations.
+        # We can't use yaml.dump's implicit pass, as id's are already removed from tags then.
+        walk_tree(variation, lambda node: (False, node.fill(variation))[0]  # Weird syntax to set continue to False
+                  if isinstance(node, util.MutablePlaceholder) else True)
+
+        # We could only have the MutablePlaceholder have 1 lambda by overriding deepcopy behaviour.
+        # we can populate it at the same time as we populate the dict of variables.
+        # Should review all deepcopy behaviour? don't know if yaml.dump mutates anything tho
 
         # Save variation to file
         print(f"Variation {i+1}/{amount}")
@@ -119,41 +132,18 @@ def procgen(args: Args):
             yaml.dump(variation, f, default_flow_style=False, Dumper=yaml.SafeDumper)
 
 
-HANDLERS: List[Type[handlers.NodeHandler]] = [
-    handlers.PlainSequence,
-    handlers.PlainMapping,
-    handlers.PlainScalar,
-    handlers.AnimalAIScalar,
-    handlers.AnimalAIMapping,
-    handlers.AnimalAISequence,
-    handlers.ProcList,
-    handlers.ProcColor,
-    handlers.ProcVector3Scaled,
-    handlers.ProcRepeatChoice,
-    handlers.ProcRestrictCombinations,
-    handlers.ProcIf,
-]
-
-
-def get_node_handler(node: Any) -> Type[handlers.NodeHandler]:
-    for handler in HANDLERS:
-        if handler.can_handle(node):
-            return handler
-    raise ValueError(f"Could not find a node class for {node}")
-
-
-def iterate_recursive(node: Any) -> Iterator[Any]:
-    handler = get_node_handler(node)
-    return handler.iterate(node, iterate_recursive)
+def iterate_variations_recursive(node: Any) -> Iterator[Any]:
+    handler = handlers.get_node_handler(node)
+    return handler.iterate(node, iterate_variations_recursive)
 
 
 def sample_recursive(node: Any) -> Any:
-    handler = get_node_handler(node)
+    handler = handlers.get_node_handler(node)
     return handler.sample(node, sample_recursive)
 
 
 def count_recursive(node: Any):
-    handler = get_node_handler(node)
+    handler = handlers.get_node_handler(node)
     return handler.count(node, count_recursive)
 
 
@@ -163,7 +153,7 @@ def explain_count_recursive(node: Any):
     For example output is: 6#ProcList x 5#ProcColor x 4#ProcVector3Scaled,
     which generates 6 * 5 * 4 = 120 variations.
     """
-    handler = get_node_handler(node)
+    handler = handlers.get_node_handler(node)
     if issubclass(handler, handlers.StaticNodeHandler):
         children = handler.children(node)
         explanations = [explain_count_recursive(child) for child in children]
@@ -176,24 +166,14 @@ def explain_count_recursive(node: Any):
         raise TypeError(f"Programmer error. Unknown type {type(handler)} {handler}.")
 
 
-def resolve_conditional(variation: tags.ArenaConfig) -> tags.ArenaConfig:
+def walk_tree(node: Any, callback: Callable[[Any], bool]):
     """
-    Resolve conditional nodes, i.e. !ProcIf, in the variation.
-    All other values should now be concrete and filled in.
+    Recursively walk the tree, calling the callback on each node.
     """
-    # TODO: Implement
-    return variation
-
-
-def custom_list_representer(dumper, data):
-    """
-    Custom representer for lists that uses flow style (i.e. short inline style)
-    if all items are scalars or !R ranges.
-    """
-    if all(isinstance(item, (str, int, float, tags.Range)) for item in data):
-        return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True)
-    else:
-        return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=False)
+    continue_ = callback(node)
+    if continue_:
+        handler = handlers.get_node_handler(node)
+        util.consume(walk_tree(child, callback) for child in handler.children(node))
 
 
 if __name__ == "__main__":

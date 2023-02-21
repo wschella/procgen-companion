@@ -178,7 +178,7 @@ Here (last case): if x=3 and z between 10 and 20 (inclusive), then we take 150.
 - The `then` field results is always a list. Its length equals the length of the outer list of the `cases` field.
 - The `default` is always a scalar, i.e. a number, a `!Vector3`, etc. It is an optional argument. If it is not provided, the tool will throw an error and stop execution when any variables take on a value that is not in the list of cases.
 
-TODO: On references. Generated yaml file. First part of the dot separated must refer to an `!Item` with the corresponding `id` field.
+TODO: On references. Generated yaml file. First part of the dot separated must refer to an `!Item` with the corresponding `id` field. All mappings can have an id (except !ProcIf)
 
 ```yaml
 # With only 1 variable

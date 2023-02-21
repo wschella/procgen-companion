@@ -1,4 +1,11 @@
 import types
+import itertools
+import collections
+from typing import *
+
+import yaml
+
+from procgen_companion import tags
 
 
 def product(*iterables, **kwargs):
@@ -25,6 +32,17 @@ def product(*iterables, **kwargs):
                 yield (item, ) + items
 
 
+def custom_list_representer(dumper, data):
+    """
+    Custom representer for lists that uses flow style (i.e. short inline style)
+    if all items are scalars or !R ranges.
+    """
+    if all(isinstance(item, (str, int, float, tags.Range)) for item in data):
+        return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True)
+    else:
+        return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=False)
+
+
 def allstatic(cls):
     """
     Class decorator that makes all methods static.
@@ -49,24 +67,44 @@ def allstatic(cls):
 
     return cls
 
-# def linspace(start, stop, num=50, endpoint=True) -> list:
-#     return list(linspace_gen(start, stop, num, endpoint))
 
-# def linspace_gen(start, stop, num=50, endpoint=True):
-#     num = int(num)
-#     start = start * 1.
-#     stop = stop * 1.
+def consume(iterator, n=None):
+    """
+    Advance the iterator n-steps ahead. If n is None, consume entirely.
 
-#     if num == 1:
-#         yield stop
-#         return
-#     if endpoint:
-#         step = (stop - start) / (num - 1)
-#     else:
-#         step = (stop - start) / num
+    Source:
+        https://docs.python.org/3/library/itertools.html#itertools-recipes
+    """
+    # Use functions that consume iterators at C speed.
+    if n is None:
+        # feed the entire iterator into a zero-length deque
+        collections.deque(iterator, maxlen=0)
+    else:
+        # advance to the empty slice starting at position n
+        next(itertools.islice(iterator, n, n), None)
 
-#     for i in range(num):
-#         yield start + step * i
+
+class MutablePlaceholder():
+    # This could all be in !ProcIf, but we don't want to overload the tags.ProcIf class.
+    # Therefore, we replace it during generation with this one, which deals with
+    # resolving the conditionals during yaml.dump.
+
+    proc_if: Callable[[Any], Any]
+    value: Optional[Any]
+
+    def __init__(self, proc_if: Callable[[Any], Any]):
+        self.proc_if = proc_if
+        self.value = None
+
+    def fill(self, root: Any):
+        self.value = self.proc_if(root)
+
+    @classmethod
+    def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:
+        if data.value is None:
+            # return dumper.represent_data(None)
+            raise ValueError("MutablePlaceholder has not been filled yet. Programmer error.")
+        return dumper.represent_data(data.value)
 
 
 # The first three colors in the list are red, green, and blue, respectively.

@@ -18,6 +18,10 @@ class CustomTag(ABC):
     def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:
         pass
 
+    @abstractmethod
+    def __getitem__(self, item: Any) -> Any:
+        pass
+
 
 def GET_ANIMAL_AI_TAGS() -> List[Type[CustomTag]]:
     return [
@@ -45,7 +49,6 @@ class AnimalAITag():
     """
     Simple marker class for AnimalAI tags.
     """
-    pass
 
 
 class ProcGenTag():
@@ -53,6 +56,15 @@ class ProcGenTag():
     Simple marker class for ProcGen tags.
     """
     pass
+
+
+class WithId():
+    id: Optional[str]  # Might not be initialised to None
+
+    def get_id(self) -> Optional[str]:
+        if hasattr(self, 'id'):
+            return self.id
+        return None
 
 
 class CustomMappingTag(CustomTag):
@@ -74,16 +86,26 @@ class CustomMappingTag(CustomTag):
         for k in str_mapping.keys():
             if k not in annotations:
                 raise ValueError(f"Unexpected key '{k}' in tag '{cls.tag}'")
+
         return cls(**str_mapping)
 
     @classmethod
     def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:
+        # Note: We filter out the new 'id' field from the AnimalAI tags, as we don't want it to be printed.
+        # But also from the rest, even though might remove intentional 'id' fields, although uses are currently not known.
+        # TODO: ^ Clean the above up.
+
         if cls.order is None:
-            return dumper.represent_mapping(f"!{cls.tag}", data.__dict__, flow_style=(cls.flow_style == 'flow'))
+            fields = data.__dict__
+            fields_filtered = [(k, fields[k]) for k in fields.keys() if k != 'id']
+            return dumper.represent_mapping(f"!{cls.tag}", fields_filtered, flow_style=(cls.flow_style == 'flow'))
 
         fields = data.__dict__
         fields_ordered = [(k, fields[k]) for k in cls.order if k in fields]
         return dumper.represent_mapping(f"!{cls.tag}", fields_ordered, flow_style=(cls.flow_style == 'flow'))
+
+    def __getitem__(self, item: Any) -> Any:
+        return self.__dict__[item]
 
 
 class CustomSequenceTag(CustomTag, Iterable[Any]):
@@ -107,6 +129,10 @@ class CustomSequenceTag(CustomTag, Iterable[Any]):
         pass
 
     @abstractmethod
+    def __getitem__(self, item: Any) -> Any:
+        pass
+
+    @abstractmethod
     def __iter__(self) -> Iterator[Any]:
         pass
 
@@ -127,21 +153,27 @@ class CustomScalarTag(CustomTag):
         value = next(iter(data.__dict__.values()))  # Should only be one value
         return dumper.represent_scalar(f"!{cls.tag}", str(value))
 
+    def __getitem__(self, item: Any) -> Any:
+        raise ValueError(f"Scalar tag '{self.tag} {self}' does not being indexed.")
+
 # ------------ AnimalAI Tags ------------
 
 
-class Arena(CustomMappingTag, AnimalAITag):
+class Arena(CustomMappingTag, AnimalAITag, WithId):
     tag: str = "Arena"
     order = ['pass_mark', 't', 'items']
 
     pass_mark: Any
     t: Any
     items: Any
+    id: Optional[str]
 
 
-class ArenaConfig(CustomMappingTag, AnimalAITag):
+class ArenaConfig(CustomMappingTag, AnimalAITag, WithId):
     tag: str = "ArenaConfig"
+
     arenas: dict[int, Arena] = {}
+    id: Optional[str]
 
     def __init__(self, arenas: dict[int, Arena]):
         self.arenas = arenas
@@ -153,7 +185,7 @@ class ArenaConfig(CustomMappingTag, AnimalAITag):
         return ArenaConfig(arenas)
 
 
-class Item(CustomMappingTag, AnimalAITag):
+class Item(CustomMappingTag, AnimalAITag, WithId):
     tag: str = "Item"
     order = ['name', 'positions', 'rotations', 'colors', 'sizes']
 
@@ -165,7 +197,7 @@ class Item(CustomMappingTag, AnimalAITag):
     id: Optional[str]
 
 
-class Vector3(CustomMappingTag, AnimalAITag):
+class Vector3(CustomMappingTag, AnimalAITag, WithId):
     tag: str = "Vector3"
     flow_style: str = 'flow'
     order = ['x', 'y', 'z']
@@ -173,9 +205,10 @@ class Vector3(CustomMappingTag, AnimalAITag):
     x: Any
     y: Any
     z: Any
+    id: Optional[str]
 
 
-class RGB(CustomMappingTag, AnimalAITag):
+class RGB(CustomMappingTag, AnimalAITag, WithId):
     tag: str = "RGB"
     flow_style: str = 'flow'
     order = ['r', 'g', 'b']
@@ -183,6 +216,7 @@ class RGB(CustomMappingTag, AnimalAITag):
     r: Any
     g: Any
     b: Any
+    id: Optional[str]
 
 # ------------ Exception ------------
 
@@ -210,6 +244,14 @@ class Range(CustomSequenceTag):
         else:
             raise IndexError(f"Index {key} out of range for !R (max length 2)")
 
+    def __getitem__(self, item: Any) -> Any:
+        if item == 0:
+            return self.min
+        elif item == 1:
+            return self.max
+        else:
+            raise IndexError(f"Index {item} out of range for !R (max length 2)")
+
     def __iter__(self) -> Iterator[Any]:
         return iter([self.min, self.max])
 
@@ -226,6 +268,9 @@ class ProcList(CustomSequenceTag, ProcGenTag):
 
     def __setitem__(self, key: int, value: Any) -> None:
         return self.options.__setitem__(key, value)
+
+    def __getitem__(self, item: Any) -> Any:
+        return self.options.__getitem__(item)
 
     def __iter__(self) -> Iterator[Any]:
         return self.options.__iter__()

@@ -4,6 +4,7 @@ from copy import deepcopy
 import random
 import functools
 import operator
+import math
 
 import procgen_companion.tags as tags
 import procgen_companion.util as util
@@ -17,6 +18,7 @@ Recursor = Callable[[Any], Any]
 class NodeHandler(ABC, Generic[NodeType, OutputType]):
     """
     Singletons. Only bundle logic.
+    TODO: Check out ABC / Interface
     """
 
     @staticmethod
@@ -40,22 +42,25 @@ class NodeHandler(ABC, Generic[NodeType, OutputType]):
         pass
 
     @staticmethod
-    def _count(node: NodeType, count: Recursor, children: Iterable[Any]) -> int:
-        child_counts = [count(child) for child in children]
-        return functools.reduce(operator.mul, child_counts, 1)
-
-
-class StaticNodeHandler(NodeHandler[NodeType, OutputType], Generic[NodeType, OutputType]):
-    """
-    Marker subclass with extra methods for static nodes.
-    """
-    @staticmethod
     @abstractmethod
     def children(node: NodeType) -> List[Any]:
         pass
 
 
-class ProcGenNodeHandler(NodeHandler[NodeType, OutputType], Generic[NodeType, OutputType]):
+class Util():
+    @staticmethod
+    def count(children: Iterable[Any], count: Recursor) -> int:
+        child_counts = [count(child) for child in children]
+        return functools.reduce(operator.mul, child_counts, 1)
+
+
+class StaticNodeHandler():
+    """
+    Marker subclass with extra methods for static nodes.
+    """
+
+
+class ProcGenNodeHandler():
     """
     Marker subclass.
     """
@@ -65,7 +70,7 @@ class ProcGenNodeHandler(NodeHandler[NodeType, OutputType], Generic[NodeType, Ou
 ############################################################################
 
 
-class PlainSequence(StaticNodeHandler[list, list]):
+class PlainSequence(NodeHandler[list, list], StaticNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, list)
@@ -76,7 +81,7 @@ class PlainSequence(StaticNodeHandler[list, list]):
 
     @staticmethod
     def count(node: list, count: Recursor) -> int:
-        return NodeHandler._count(node, count, node)
+        return Util.count(PlainSequence.children(node), count)
 
     @staticmethod
     def iterate(node: list, iterate: Recursor) -> Iterator[list]:
@@ -90,7 +95,7 @@ class PlainSequence(StaticNodeHandler[list, list]):
         return node
 
 
-class PlainMapping(StaticNodeHandler[dict, dict]):
+class PlainMapping(NodeHandler[dict, dict], StaticNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, dict)
@@ -101,7 +106,7 @@ class PlainMapping(StaticNodeHandler[dict, dict]):
 
     @staticmethod
     def count(node: dict, count: Recursor) -> int:
-        return NodeHandler._count(node, count, node.values())
+        return Util.count(PlainMapping.children(node), count)
 
     @staticmethod
     def iterate(node: dict, iterate: Recursor) -> Iterator[dict]:
@@ -124,7 +129,7 @@ class PlainMapping(StaticNodeHandler[dict, dict]):
 YAMLScalar = Union[str, int, float, bool]
 
 
-class PlainScalar(StaticNodeHandler[YAMLScalar, YAMLScalar]):
+class PlainScalar(NodeHandler[YAMLScalar, YAMLScalar], StaticNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, (str, int, float, bool))
@@ -150,7 +155,7 @@ class PlainScalar(StaticNodeHandler[YAMLScalar, YAMLScalar]):
 ############################################################################
 
 
-class AnimalAISequence(StaticNodeHandler[tags.CustomSequenceTag, tags.CustomSequenceTag]):
+class AnimalAISequence(NodeHandler[tags.CustomSequenceTag, tags.CustomSequenceTag], StaticNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, tags.AnimalAITag) and isinstance(node, tags.CustomSequenceTag)
@@ -162,7 +167,7 @@ class AnimalAISequence(StaticNodeHandler[tags.CustomSequenceTag, tags.CustomSequ
 
     @staticmethod
     def count(node: tags.CustomSequenceTag, count: Recursor) -> int:
-        return NodeHandler._count(node, count, node)
+        return Util.count(AnimalAISequence.children(node), count)
 
     @staticmethod
     def iterate(node: tags.CustomSequenceTag, iterate: Recursor) -> Iterator[tags.CustomSequenceTag]:
@@ -176,7 +181,7 @@ class AnimalAISequence(StaticNodeHandler[tags.CustomSequenceTag, tags.CustomSequ
         return list(iter(node))
 
 
-class AnimalAIMapping(StaticNodeHandler[tags.CustomMappingTag, tags.CustomMappingTag]):
+class AnimalAIMapping(NodeHandler[tags.CustomMappingTag, tags.CustomMappingTag], StaticNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, tags.AnimalAITag) and isinstance(node, tags.CustomMappingTag)
@@ -188,7 +193,7 @@ class AnimalAIMapping(StaticNodeHandler[tags.CustomMappingTag, tags.CustomMappin
 
     @staticmethod
     def count(node: tags.CustomMappingTag, count: Recursor) -> int:
-        return NodeHandler._count(node, count, node.__dict__.values())
+        return Util.count(AnimalAIMapping.children(node), count)
 
     @staticmethod
     def iterate(node: tags.CustomMappingTag, iterate: Recursor) -> Iterator[tags.CustomMappingTag]:
@@ -208,7 +213,7 @@ class AnimalAIMapping(StaticNodeHandler[tags.CustomMappingTag, tags.CustomMappin
         return list(node.__dict__.values())
 
 
-class AnimalAIScalar(StaticNodeHandler[tags.CustomScalarTag, tags.CustomScalarTag]):
+class AnimalAIScalar(NodeHandler[tags.CustomScalarTag, tags.CustomScalarTag], StaticNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, tags.AnimalAITag) and isinstance(node, tags.CustomScalarTag)
@@ -235,7 +240,7 @@ class AnimalAIScalar(StaticNodeHandler[tags.CustomScalarTag, tags.CustomScalarTa
 ############################################################################
 
 
-class ProcList(ProcGenNodeHandler[tags.ProcList, Any]):
+class ProcList(NodeHandler[tags.ProcList, Any], ProcGenNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, tags.ProcList)
@@ -252,8 +257,12 @@ class ProcList(ProcGenNodeHandler[tags.ProcList, Any]):
     def iterate(node: tags.ProcList, iterate: Recursor) -> Iterator[Any]:
         return (deepcopy(option) for option in node.options)
 
+    @staticmethod
+    def children(node: tags.ProcList) -> list[Any]:
+        return list(node.options)
 
-class ProcColor(ProcGenNodeHandler[tags.ProcColor, tags.RGB]):
+
+class ProcColor(NodeHandler[tags.ProcColor, tags.RGB], ProcGenNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, tags.ProcColor)
@@ -270,12 +279,16 @@ class ProcColor(ProcGenNodeHandler[tags.ProcColor, tags.RGB]):
     def iterate(node: tags.ProcColor, iterate: Recursor) -> Iterator[tags.RGB]:
         return iter([to_rgb(deepcopy(c)) for c in util.COLORS[:node.amount]])
 
+    @staticmethod
+    def children(node: tags.ProcColor) -> list[Any]:
+        return [node.amount]
+
 
 def to_rgb(color: Tuple[int, int, int]) -> tags.RGB:
     return tags.RGB(r=color[0], g=color[1], b=color[2])
 
 
-class ProcVector3Scaled(ProcGenNodeHandler[tags.ProcVector3Scaled, tags.Vector3]):
+class ProcVector3Scaled(NodeHandler[tags.ProcVector3Scaled, tags.Vector3], ProcGenNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, tags.ProcVector3Scaled)
@@ -295,12 +308,17 @@ class ProcVector3Scaled(ProcGenNodeHandler[tags.ProcVector3Scaled, tags.Vector3]
         base = node.base if node.base is not None else tags.Vector3(x=0, y=0, z=0)
         return iter([scale_vector3(deepcopy(base), scale) for scale in node.scales])
 
+    @staticmethod
+    def children(node: tags.ProcVector3Scaled) -> list[Any]:
+        base = [node.base] if node.base is not None else []
+        return [base] + node.scales
+
 
 def scale_vector3(vector: tags.Vector3, scale: float) -> tags.Vector3:
     return tags.Vector3(x=vector.x * scale, y=vector.y * scale, z=vector.z * scale)
 
 
-class ProcRepeatChoice(ProcGenNodeHandler[tags.ProcRepeatChoice, Any]):
+class ProcRepeatChoice(NodeHandler[tags.ProcRepeatChoice, Any], ProcGenNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, tags.ProcRepeatChoice)
@@ -319,8 +337,12 @@ class ProcRepeatChoice(ProcGenNodeHandler[tags.ProcRepeatChoice, Any]):
         duplicate = lambda var: [var] + [deepcopy(var) for _ in range(node.amount - 1)]
         return (duplicate(var) for var in iterate(node.value))
 
+    @staticmethod
+    def children(node: tags.ProcRepeatChoice) -> list[Any]:
+        return [node.amount, node.value]
 
-class ProcRestrictCombinations(ProcGenNodeHandler[tags.ProcRestrictCombinations, Any]):
+
+class ProcRestrictCombinations(NodeHandler[tags.ProcRestrictCombinations, Any], ProcGenNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, tags.ProcRestrictCombinations)
@@ -343,18 +365,20 @@ class ProcRestrictCombinations(ProcGenNodeHandler[tags.ProcRestrictCombinations,
         from procgen_companion.procgen import sample_recursive
         return (sample_recursive(node.item) for _ in range(node.amount))
 
+    @staticmethod
+    def children(node: tags.ProcRestrictCombinations) -> list[Any]:
+        return [node.amount, node.item]
 
-class ProcIf(ProcGenNodeHandler[tags.ProcIf, Any]):
+
+class ProcIf(NodeHandler[tags.ProcIf, Any], ProcGenNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, tags.ProcIf)
 
     @staticmethod
-    def sample(node: tags.ProcIf, sample: Recursor) -> Any:
-        # TODO: Implement
-        # raise NotImplementedError()
-        # return random.choice(node.then)
-        return node
+    def sample(node: tags.ProcIf, sample: Recursor) -> util.MutablePlaceholder:
+        proc_if = lambda root: ProcIf.__resolve_condition(node, root)
+        return util.MutablePlaceholder(proc_if)
 
     @staticmethod
     def count(node: tags.ProcIf, count: Recursor) -> int:
@@ -364,6 +388,103 @@ class ProcIf(ProcGenNodeHandler[tags.ProcIf, Any]):
 
     @staticmethod
     def iterate(node: tags.ProcIf, iterate: Recursor) -> Iterator[Any]:
-        # raise NotImplementedError()
-        # TODO: Implement
-        return iter([deepcopy(node)])
+        proc_if = lambda root: ProcIf.__resolve_condition(node, root)
+        placeholder = util.MutablePlaceholder(proc_if)
+        return iter([placeholder])
+
+    @staticmethod
+    def children(node: tags.ProcIf) -> list[Any]:
+        default = [node.default] if node.default is not None else []
+        return [node.variable, node.cases, node.then, default]
+
+    @staticmethod
+    def __resolve_condition(node: tags.ProcIf, root: Any) -> Any:
+        variables = node.variable if isinstance(node.variable, list) else [node.variable]
+        values = [ProcIf.__find_variable(variable, root) for variable in variables]
+
+        for idx, (case, then) in enumerate(zip(node.cases, node.then)):
+            case = case if isinstance(case, list) else [case]
+            if len(case) != len(values):
+                msg = f"Length of case {idx} {case} does not match with variables {variables}."
+                raise ValueError(msg)
+
+            if all(ProcIf.__matches(v1, v2) for v1, v2 in zip(values, case)):
+                return then
+
+        if node.default is not None:
+            return node.default
+
+        raise ValueError(f"Could not find a matching case for {values} in {node.variable}")
+
+    @staticmethod
+    def __find_variable(variable: str, root: Any) -> Any:
+        item_id, *path_ = variable.split(".")
+        item = ProcIf.__find_item(item_id, root)
+        if item is None:
+            raise ValueError(f"Could not find item with id {item_id}.")
+
+        # Deal with list indices
+        path = [int(key) if key.isdigit() else key for key in path_]
+
+        # All custom tags implement __getitem__, as do dicts and list.
+        # Scalars will raise an exception.
+        value = item
+        for key in path:
+            value = value[key]
+        return value
+
+    @staticmethod
+    def __matches(v_var: Any, v_case: Any) -> bool:
+        if isinstance(v_case, tags.Range):
+            return v_case.min <= v_var <= v_case.max
+        if isinstance(v_case, (int, float)):
+            return math.isclose(v_var, v_case)
+        return v_var == v_case
+
+    @staticmethod
+    def __find_item(item_id: str, node: Any) -> Optional[Any]:
+        """
+        Only custom AnimalAI mapping tags can have an id.
+        """
+
+        if isinstance(node, tags.AnimalAITag) and isinstance(node, tags.WithId):
+            if node.get_id() == item_id:
+                return node
+
+        # If not an AnimalAI tag it can't have an id (previous conditions).
+        # If not an AnimalAI tag, but still a custom tag,
+        # ... its children can't have an id either (!Proc tags, special cases such as !R).
+        if not isinstance(node, tags.AnimalAITag) and isinstance(node, tags.CustomTag):
+            return None
+
+        # These are exactly the ones we're trying to resolve now. They can't depend on each other.
+        if isinstance(node, util.MutablePlaceholder):
+            return None
+
+        # Guaranteed static node now (no !Proc tags)
+        handler = get_node_handler(node)
+        children = handler.children(cast(Any, node))
+        return next((node for child in children if (node := ProcIf.__find_item(item_id, child)) is not None), None)
+
+
+HANDLERS: List[Type[NodeHandler]] = [
+    PlainSequence,
+    PlainMapping,
+    PlainScalar,
+    AnimalAIScalar,
+    AnimalAIMapping,
+    AnimalAISequence,
+    ProcList,
+    ProcColor,
+    ProcVector3Scaled,
+    ProcRepeatChoice,
+    ProcRestrictCombinations,
+    ProcIf,
+]
+
+
+def get_node_handler(node: Any) -> Type[NodeHandler]:
+    for handler in HANDLERS:
+        if handler.can_handle(node):
+            return handler
+    raise ValueError(f"Could not find a node class for {node}")
