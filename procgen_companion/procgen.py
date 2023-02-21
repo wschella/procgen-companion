@@ -3,9 +3,9 @@ from pathlib import Path
 from dataclasses import dataclass
 import argparse
 import random
-import itertools
 
 import yaml
+import tqdm
 
 import procgen_companion.tags as tags
 import procgen_companion.handlers as handlers
@@ -115,7 +115,7 @@ def procgen(args: Args):
         iterator = (next(full_iterator) for _ in range(amount))
 
     # Generate all requested variations
-    for i, variation in enumerate(iterator):
+    for i, variation in tqdm.tqdm(enumerate(iterator), total=amount):
         # We need a second pass to fix !ProcIf's, as they need to access the final variations.
         # We can't use yaml.dump's implicit pass, as id's are already removed from tags then.
         walk_tree(variation, lambda node: (False, node.fill(variation))[0]  # Weird syntax to set continue to False
@@ -126,7 +126,6 @@ def procgen(args: Args):
         # Should review all deepcopy behaviour? don't know if yaml.dump mutates anything tho
 
         # Save variation to file
-        print(f"Variation {i+1}/{amount}")
         filename = f"{args.path.stem}_{i+1:05d}.yaml"
         with open(output_dir / filename, "w") as f:
             yaml.dump(variation, f, default_flow_style=False, Dumper=yaml.SafeDumper)
