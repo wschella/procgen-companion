@@ -84,6 +84,13 @@ def consume(iterator, n=None):
         next(itertools.islice(iterator, n, n), None)
 
 
+# The first three colors in the list are red, green, and blue, respectively.
+# The next three colors are yellow, magenta, and cyan, which are created by mixing the primary colors.
+# The last four colors are various shades of gray.
+COLORS = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255),
+          (0, 255, 255), (192, 192, 192), (128, 128, 128), (128, 0, 0), (0, 128, 0)]
+
+
 class MutablePlaceholder():
     # This could all be in !ProcIf, but we don't want to overload the tags.ProcIf class.
     # Therefore, we replace it during generation with this one, which deals with
@@ -97,7 +104,8 @@ class MutablePlaceholder():
         self.value = None
 
     def fill(self, root: Any):
-        self.value = self.proc_if(root)
+        self.value, label = self.proc_if(root)
+        return self.value, label
 
     @classmethod
     def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:
@@ -105,10 +113,3 @@ class MutablePlaceholder():
             # return dumper.represent_data(None)
             raise ValueError("MutablePlaceholder has not been filled yet. Programmer error.")
         return dumper.represent_data(data.value)
-
-
-# The first three colors in the list are red, green, and blue, respectively.
-# The next three colors are yellow, magenta, and cyan, which are created by mixing the primary colors.
-# The last four colors are various shades of gray.
-COLORS = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255),
-          (0, 255, 255), (192, 192, 192), (128, 128, 128), (128, 0, 0), (0, 128, 0)]

@@ -223,6 +223,7 @@ cases: [[1, 5], [1, 7], [3, !R [10, 20]]]
 then: [90, 120, 150]
 labels: [dist_close, dist_med, dist_far]
 default: 0
+default_label: dist_default
 # Currently no support for a default label yet.
 
 !ProcVector3Scaled

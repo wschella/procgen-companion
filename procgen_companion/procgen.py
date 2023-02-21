@@ -1,8 +1,9 @@
+import argparse
+import random
+import csv
 from typing import *
 from pathlib import Path
 from dataclasses import dataclass
-import argparse
-import random
 
 import yaml
 import tqdm
@@ -10,6 +11,7 @@ import tqdm
 import procgen_companion.tags as tags
 import procgen_companion.handlers as handlers
 import procgen_companion.util as util
+from procgen_companion.meta import Meta
 
 
 def run():
@@ -56,6 +58,10 @@ def procgen(args: Args):
     # Add custom representer for MutablePlaceholder
     yaml.SafeDumper.add_representer(
         util.MutablePlaceholder, util.MutablePlaceholder.represent)  # type: ignore
+
+    # Add custom representer for LabelledOption, just for copying the template
+    yaml.SafeDumper.add_representer(tags.LabelledOption,
+                                    lambda dumper, opt: dumper.represent_dict(opt.__dict__))  # type: ignore
 
     # Add custom list representer for collapsing lists of scalars
     yaml.SafeDumper.add_representer(list, util.custom_list_representer)
@@ -107,7 +113,7 @@ def procgen(args: Args):
     if args.sample is not None:
         assert args.head is None, "Cannot use both --head and --sample"
         amount = min(n_variations, args.sample, args.max)
-        iterator = (sample_recursive(template) for _ in range(amount))
+        iterator = (sample_recursive(template, Meta()) for _ in range(amount))
     else:
         head = args.head if args.head is not None else n_variations
         amount = min(n_variations, head, args.max)
@@ -115,20 +121,31 @@ def procgen(args: Args):
         iterator = (next(full_iterator) for _ in range(amount))
 
     # Generate all requested variations
-    for i, variation in tqdm.tqdm(enumerate(iterator), total=amount):
+    meta_file = open(output_dir / "meta.csv", "w")
+    for i, (variation, meta) in tqdm.tqdm(enumerate(iterator), total=amount):
         # We need a second pass to fix !ProcIf's, as they need to access the final variations.
         # We can't use yaml.dump's implicit pass, as id's are already removed from tags then.
-        walk_tree(variation, lambda node: (False, node.fill(variation))[0]  # Weird syntax to set continue to False
-                  if isinstance(node, util.MutablePlaceholder) else True)
+        def fill_placeholder(node: Any) -> Any:
+            if not isinstance(node, util.MutablePlaceholder):
+                return True  # Continue walk.
+            _value, label = node.fill(variation)
+            meta.update(label)
+            return False  # Stop walking this branch.
+        walk_tree(variation, fill_placeholder)
 
-        # We could only have the MutablePlaceholder have 1 lambda by overriding deepcopy behaviour.
+        # TODO: We could only have the MutablePlaceholder have 1 lambda by overriding deepcopy behaviour.
         # we can populate it at the same time as we populate the dict of variables.
-        # Should review all deepcopy behaviour? don't know if yaml.dump mutates anything tho
+        # Should review all deepcopy behaviour? don't know if yaml.dump mutates anything tho.
+        # We shouldn't optimise too early tho. Likely bottlenecked by OS file creation anyway.
 
         # Save variation to file
-        filename = f"{args.path.stem}_{i+1:05d}.yaml"
+        labels = f"_{'_'.join(meta.labels)}" if meta.labels else ""
+        filename = f"{args.path.stem}_{i+1:05d}{labels}.yaml"
+        csv.writer(meta_file).writerow([filename] + meta.labels)
         with open(output_dir / filename, "w") as f:
             yaml.dump(variation, f, default_flow_style=False, Dumper=yaml.SafeDumper)
+
+    meta_file.close()
 
 
 def iterate_variations_recursive(node: Any) -> Iterator[Any]:
@@ -136,9 +153,15 @@ def iterate_variations_recursive(node: Any) -> Iterator[Any]:
     return handler.iterate(node, iterate_variations_recursive)
 
 
-def sample_recursive(node: Any) -> Any:
+def sample_recursive(node: Any, meta: Meta) -> Tuple[Any, Meta]:
     handler = handlers.get_node_handler(node)
-    return handler.sample(node, sample_recursive)
+    recursor = lambda node: sample_recursive(node, meta)[0]
+    value, label = handler.sample(node, recursor)
+
+    if label:
+        meta.labels.append(label)
+
+    return value, meta
 
 
 def count_recursive(node: Any):

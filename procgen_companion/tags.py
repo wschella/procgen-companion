@@ -36,6 +36,7 @@ def GET_ANIMAL_AI_TAGS() -> List[Type[CustomTag]]:
 def GET_PROC_GEN_TAGS() -> List[Type[CustomTag]]:
     return [
         ProcList,
+        ProcListLabelled,
         ProcColor,
         ProcVector3Scaled,
         ProcRepeatChoice,
@@ -276,6 +277,37 @@ class ProcList(CustomSequenceTag, ProcGenTag):
         return self.options.__iter__()
 
 
+class ProcListLabelled(CustomSequenceTag, ProcGenTag):
+    tag: str = "ProcListLabelled"
+
+    options: list
+
+    def __init__(self, options: Any) -> None:
+        self.options = [LabelledOption(option) for option in options]
+
+    def __setitem__(self, key: int, value: Any) -> None:
+        return self.options.__setitem__(key, value)
+
+    def __getitem__(self, item: Any) -> Any:
+        return self.options.__getitem__(item)
+
+    def __iter__(self) -> Iterator[Any]:
+        return self.options.__iter__()
+
+
+class LabelledOption():
+    label: str
+    value: Any
+
+    def __init__(self, option: Any) -> None:
+        msg = f"!ProcIfLabelled items must be a mapping of (value, label) got {option}"
+        assert isinstance(option, dict), msg
+        assert 'label' in option, msg
+        assert 'value' in option, msg
+        self.label = option['label']
+        self.value = option['value']
+
+
 class ProcColor(CustomScalarTag, ProcGenTag):
     tag: str = "ProcColor"
 
@@ -291,10 +323,12 @@ class ProcVector3Scaled(CustomMappingTag, ProcGenTag):
 
     base: Optional[Vector3]
     scales: list[float]
+    labels: Optional[list[str]]
 
-    def __init__(self, scales: list, base: Optional[Vector3] = None):
-        self.base = base
+    def __init__(self, scales: list, base: Optional[Vector3] = None, labels: Optional[list[str]] = None):
         self.scales = [float(x) for x in scales]
+        self.base = base
+        self.labels = labels
 
 
 class ProcRepeatChoice(CustomMappingTag, ProcGenTag):
@@ -326,24 +360,22 @@ class ProcIf(CustomMappingTag, ProcGenTag):
     cases: List[Any]
     then: List[Any]
     default: Optional[Any]
+    labels: Optional[list[str]]
+    default_label: Optional[str]
 
-    def __init__(self, variable: Union[str, list[str]], cases: List[Any], then: List[Any], default: Optional[Any]):
+    def __init__(
+            self,
+            variable: Union[str, list[str]],
+            cases: List[Any],
+            then: List[Any],
+            default: Optional[Any] = None,
+            labels: Optional[list[str]] = None,
+            default_label: Optional[str] = None):
         self.variable = variable
         self.cases = cases
         self.then = then
         self.default = default
-
-
-class ProcListLabeled(CustomSequenceTag, ProcGenTag):
-    tag: str = "ProcList"
-
-    options: list
-
-    def __init__(self, options: Any) -> None:
-        self.options = options
-
-    def __setitem__(self, key: int, value: Any) -> None:
-        return self.options.__setitem__(key, value)
-
-    def __iter__(self) -> Iterator[Any]:
-        return self.options.__iter__()
+        self.labels = labels
+        assert (isinstance(default_label, str)
+                ), f"!ProcIfLabelled default_label must be a string, got {default_label}"
+        self.default_label = default_label
