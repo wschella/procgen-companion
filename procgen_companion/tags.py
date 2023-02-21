@@ -283,7 +283,7 @@ class ProcListLabelled(CustomSequenceTag, ProcGenTag):
     options: list
 
     def __init__(self, options: Any) -> None:
-        self.options = [LabelledOption(option) for option in options]
+        self.options = [new_labelled_option(option) for option in options]
 
     def __setitem__(self, key: int, value: Any) -> None:
         return self.options.__setitem__(key, value)
@@ -295,17 +295,17 @@ class ProcListLabelled(CustomSequenceTag, ProcGenTag):
         return self.options.__iter__()
 
 
-class LabelledOption():
+def new_labelled_option(option) -> LabelledOption:
+    msg = f"!ProcIfLabelled items must be a mapping of (value, label) got {option}"
+    assert isinstance(option, dict), msg
+    assert 'label' in option, msg
+    assert 'value' in option, msg
+    return LabelledOption(label=option['label'], value=option['value'])
+
+
+class LabelledOption(TypedDict):
     label: str
     value: Any
-
-    def __init__(self, option: Any) -> None:
-        msg = f"!ProcIfLabelled items must be a mapping of (value, label) got {option}"
-        assert isinstance(option, dict), msg
-        assert 'label' in option, msg
-        assert 'value' in option, msg
-        self.label = option['label']
-        self.value = option['value']
 
 
 class ProcColor(CustomScalarTag, ProcGenTag):

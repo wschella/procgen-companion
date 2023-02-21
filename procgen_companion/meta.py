@@ -13,7 +13,7 @@ class Meta():
         self.labels = []
         # self.choices = {}
 
-    def update(self, label: Optional[str] = None):
+    def add_label(self, label: Optional[str] = None):
         if label is not None:
             self.labels.append(label)
         # self.choices[path] = choice

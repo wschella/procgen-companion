@@ -4,6 +4,7 @@ import csv
 from typing import *
 from pathlib import Path
 from dataclasses import dataclass
+from copy import deepcopy
 
 import yaml
 import tqdm
@@ -59,10 +60,6 @@ def procgen(args: Args):
     yaml.SafeDumper.add_representer(
         util.MutablePlaceholder, util.MutablePlaceholder.represent)  # type: ignore
 
-    # Add custom representer for LabelledOption, just for copying the template
-    yaml.SafeDumper.add_representer(tags.LabelledOption,
-                                    lambda dumper, opt: dumper.represent_dict(opt.__dict__))  # type: ignore
-
     # Add custom list representer for collapsing lists of scalars
     yaml.SafeDumper.add_representer(list, util.custom_list_representer)
 
@@ -117,7 +114,8 @@ def procgen(args: Args):
     else:
         head = args.head if args.head is not None else n_variations
         amount = min(n_variations, head, args.max)
-        full_iterator = iterate_variations_recursive(template)
+        # full_iterator = iterate_variations_recursive_root(template)
+        full_iterator = iterate_variations_recursive(template, Meta())
         iterator = (next(full_iterator) for _ in range(amount))
 
     # Generate all requested variations
@@ -129,8 +127,9 @@ def procgen(args: Args):
             if not isinstance(node, util.MutablePlaceholder):
                 return True  # Continue walk.
             _value, label = node.fill(variation)
-            meta.update(label)
+            meta.add_label(label)
             return False  # Stop walking this branch.
+        meta = deepcopy(meta)
         walk_tree(variation, fill_placeholder)
 
         # TODO: We could only have the MutablePlaceholder have 1 lambda by overriding deepcopy behaviour.
@@ -148,20 +147,36 @@ def procgen(args: Args):
     meta_file.close()
 
 
-def iterate_variations_recursive(node: Any) -> Iterator[Any]:
+def iterate_variations_recursive(node: Any, meta: Meta) -> Iterator[Tuple[Any, Meta]]:
+    # Without collecting meta info, this looks a lot simpler:
+    # def iterate_variations_recursive(node: Any) -> Iterator[Any]:
+    #     handler = handlers.get_node_handler(node)
+    #     return handler.iterate(node, iterate_variations_recursive)
+
     handler = handlers.get_node_handler(node)
-    return handler.iterate(node, iterate_variations_recursive)
+    unwrap_meta = lambda variation_meta: variation_meta[0]
+
+    def wrap_with_meta(variation: Any) -> Tuple[Any, Meta]:
+        if issubclass(handler, handlers.ProcRestrictCombinations):
+            variation, meta_ = variation
+        if issubclass(handler, handlers.LabelledNodeHandler):
+            variation, label = variation
+        return variation, meta
+
+    recursor = lambda node: map(unwrap_meta, iterate_variations_recursive(node, meta))
+    return map(wrap_with_meta, handler.iterate(node, recursor))
 
 
 def sample_recursive(node: Any, meta: Meta) -> Tuple[Any, Meta]:
     handler = handlers.get_node_handler(node)
     recursor = lambda node: sample_recursive(node, meta)[0]
-    value, label = handler.sample(node, recursor)
+    variation = handler.sample(node, recursor)
 
-    if label:
-        meta.labels.append(label)
+    if issubclass(handler, handlers.LabelledNodeHandler):
+        variation, label = cast(Tuple, variation)
+        meta.add_label(label)
 
-    return value, meta
+    return variation, meta
 
 
 def count_recursive(node: Any):

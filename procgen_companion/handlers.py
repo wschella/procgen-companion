@@ -5,6 +5,7 @@ import random
 import functools
 import operator
 import math
+import itertools
 
 import procgen_companion.tags as tags
 import procgen_companion.util as util
@@ -30,7 +31,7 @@ class NodeHandler(ABC, Generic[NodeType, OutputType]):
 
     @staticmethod
     @abstractmethod
-    def sample(node: NodeType, sample: Recursor) -> Tuple[OutputType, Label]:
+    def sample(node: NodeType, sample: Recursor) -> OutputType:
         pass
 
     @staticmethod
@@ -58,13 +59,20 @@ class Util():
 
 class StaticNodeHandler():
     """
-    Marker subclass with extra methods for static nodes.
+    Marker subclass.
     """
 
 
 class ProcGenNodeHandler():
     """
     Marker subclass.
+    """
+
+
+class LabelledNodeHandler():
+    """
+    Marker subclass.
+    All of these handlers will return both a value and a label.
     """
 
 ############################################################################
@@ -78,8 +86,8 @@ class PlainSequence(NodeHandler[list, list], StaticNodeHandler):
         return isinstance(node, list)
 
     @staticmethod
-    def sample(node: list, sample: Recursor) -> Tuple[list, Label]:
-        return [sample(child) for child in node], None
+    def sample(node: list, sample: Recursor) -> list:
+        return [sample(child) for child in node]
 
     @staticmethod
     def count(node: list, count: Recursor) -> int:
@@ -103,8 +111,8 @@ class PlainMapping(NodeHandler[dict, dict], StaticNodeHandler):
         return isinstance(node, dict)
 
     @staticmethod
-    def sample(node: dict, sample: Recursor) -> Tuple[dict, Label]:
-        return {k: sample(v) for k, v in node.items()}, None
+    def sample(node: dict, sample: Recursor) -> dict:
+        return {k: sample(v) for k, v in node.items()}
 
     @staticmethod
     def count(node: dict, count: Recursor) -> int:
@@ -137,8 +145,8 @@ class PlainScalar(NodeHandler[YAMLScalar, YAMLScalar], StaticNodeHandler):
         return isinstance(node, (str, int, float, bool))
 
     @staticmethod
-    def sample(node: YAMLScalar, sample: Recursor) -> Tuple[YAMLScalar, Label]:
-        return deepcopy(node), None
+    def sample(node: YAMLScalar, sample: Recursor) -> YAMLScalar:
+        return deepcopy(node)
 
     @staticmethod
     def count(node: YAMLScalar, count: Recursor) -> int:
@@ -163,9 +171,9 @@ class AnimalAISequence(NodeHandler[tags.CustomSequenceTag, tags.CustomSequenceTa
         return isinstance(node, tags.AnimalAITag) and isinstance(node, tags.CustomSequenceTag)
 
     @staticmethod
-    def sample(node: tags.CustomSequenceTag, sample: Recursor) -> Tuple[tags.CustomSequenceTag, None]:
+    def sample(node: tags.CustomSequenceTag, sample: Recursor) -> tags.CustomSequenceTag:
         values = [sample(child) for child in node]
-        return type(node)(values), None
+        return type(node)(values)
 
     @staticmethod
     def count(node: tags.CustomSequenceTag, count: Recursor) -> int:
@@ -189,9 +197,9 @@ class AnimalAIMapping(NodeHandler[tags.CustomMappingTag, tags.CustomMappingTag],
         return isinstance(node, tags.AnimalAITag) and isinstance(node, tags.CustomMappingTag)
 
     @staticmethod
-    def sample(node: tags.CustomMappingTag, sample: Recursor) -> Tuple[tags.CustomMappingTag, None]:
+    def sample(node: tags.CustomMappingTag, sample: Recursor) -> tags.CustomMappingTag:
         kvs = {k: sample(v) for k, v in node.__dict__.items()}
-        return type(node)(**kvs), None
+        return type(node)(**kvs)
 
     @staticmethod
     def count(node: tags.CustomMappingTag, count: Recursor) -> int:
@@ -221,8 +229,8 @@ class AnimalAIScalar(NodeHandler[tags.CustomScalarTag, tags.CustomScalarTag], St
         return isinstance(node, tags.AnimalAITag) and isinstance(node, tags.CustomScalarTag)
 
     @staticmethod
-    def sample(node: tags.CustomScalarTag, sample: Recursor) -> Tuple[tags.CustomScalarTag, Label]:
-        return deepcopy(node), None
+    def sample(node: tags.CustomScalarTag, sample: Recursor) -> tags.CustomScalarTag:
+        return deepcopy(node)
 
     @staticmethod
     def count(node: tags.CustomScalarTag, count: Recursor) -> int:
@@ -261,30 +269,30 @@ class ProcList(NodeHandler[tags.ProcList, Any], ProcGenNodeHandler):
 
     @staticmethod
     def children(node: tags.ProcList) -> list[Any]:
-        return list(node.options)
+        return node.options
 
 
-class ProcListLabelled(NodeHandler[tags.ProcListLabelled, Any], ProcGenNodeHandler):
+class ProcListLabelled(NodeHandler[tags.ProcListLabelled, Tuple[Any, Label]], ProcGenNodeHandler, LabelledNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, tags.ProcListLabelled)
 
     @staticmethod
     def sample(node: tags.ProcListLabelled, sample: Recursor) -> Tuple[Any, Label]:
-        option = deepcopy(random.choice(node.options))
-        return option.value, option.label
+        option: tags.LabelledOption = deepcopy(random.choice(node.options))
+        return option["value"], option["label"]
 
     @staticmethod
     def count(node: tags.ProcListLabelled, count: Recursor) -> int:
         return len(node.options)
 
     @staticmethod
-    def iterate(node: tags.ProcListLabelled, iterate: Recursor) -> Iterator[Any]:
-        return (deepcopy(option.value) for option in node.options)
+    def iterate(node: tags.ProcListLabelled, iterate: Recursor) -> Iterator[Tuple[Any, Label]]:
+        return ((deepcopy(option["value"]), option["label"]) for option in node.options)
 
     @staticmethod
     def children(node: tags.ProcListLabelled) -> list[Any]:
-        return list(node.options)
+        return node.options
 
 
 class ProcColor(NodeHandler[tags.ProcColor, tags.RGB], ProcGenNodeHandler):
@@ -293,8 +301,8 @@ class ProcColor(NodeHandler[tags.ProcColor, tags.RGB], ProcGenNodeHandler):
         return isinstance(node, tags.ProcColor)
 
     @staticmethod
-    def sample(node: tags.ProcColor, sample: Recursor) -> Tuple[tags.RGB, Label]:
-        return to_rgb(deepcopy(random.choice(util.COLORS))), None
+    def sample(node: tags.ProcColor, sample: Recursor) -> tags.RGB:
+        return to_rgb(deepcopy(random.choice(util.COLORS)))
 
     @staticmethod
     def count(node: tags.ProcColor, count: Recursor) -> int:
@@ -313,7 +321,7 @@ def to_rgb(color: Tuple[int, int, int]) -> tags.RGB:
     return tags.RGB(r=color[0], g=color[1], b=color[2])
 
 
-class ProcVector3Scaled(NodeHandler[tags.ProcVector3Scaled, tags.Vector3], ProcGenNodeHandler):
+class ProcVector3Scaled(NodeHandler[tags.ProcVector3Scaled, Tuple[tags.Vector3, Label]], ProcGenNodeHandler, LabelledNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, tags.ProcVector3Scaled)
@@ -334,9 +342,14 @@ class ProcVector3Scaled(NodeHandler[tags.ProcVector3Scaled, tags.Vector3], ProcG
         return len(node.scales)
 
     @staticmethod
-    def iterate(node: tags.ProcVector3Scaled, iterate: Recursor) -> Iterator[tags.Vector3]:
+    def iterate(node: tags.ProcVector3Scaled, iterate: Recursor) -> Iterator[Tuple[tags.Vector3, Label]]:
         base = node.base if node.base is not None else tags.Vector3(x=0, y=0, z=0)
-        return iter([scale_vector3(deepcopy(base), scale) for scale in node.scales])
+        generator = (scale_vector3(deepcopy(base), scale) for scale in node.scales)
+
+        if node.labels is None:
+            return zip(iter(generator), itertools.repeat(None))
+        assert (len(node.labels) == len(node.scales)), "Labels and scales must be the same length."
+        return zip(iter(generator), node.labels)
 
     @staticmethod
     def children(node: tags.ProcVector3Scaled) -> list[Any]:
@@ -348,15 +361,15 @@ def scale_vector3(vector: tags.Vector3, scale: float) -> tags.Vector3:
     return tags.Vector3(x=vector.x * scale, y=vector.y * scale, z=vector.z * scale)
 
 
-class ProcRepeatChoice(NodeHandler[tags.ProcRepeatChoice, Any], ProcGenNodeHandler):
+class ProcRepeatChoice(NodeHandler[tags.ProcRepeatChoice, List[Any]], ProcGenNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, tags.ProcRepeatChoice)
 
     @staticmethod
-    def sample(node: tags.ProcRepeatChoice, sample: Recursor) -> Tuple[Any, Label]:
+    def sample(node: tags.ProcRepeatChoice, sample: Recursor) -> List[Any]:
         choice = sample(node.value)
-        return [choice] + [deepcopy(choice) for _ in range(node.amount - 1)], None
+        return [choice] + [deepcopy(choice) for _ in range(node.amount - 1)]
 
     @staticmethod
     def count(node: tags.ProcRepeatChoice, count: Recursor) -> int:
@@ -378,8 +391,8 @@ class ProcRestrictCombinations(NodeHandler[tags.ProcRestrictCombinations, Any], 
         return isinstance(node, tags.ProcRestrictCombinations)
 
     @staticmethod
-    def sample(node: tags.ProcRestrictCombinations, sample: Recursor) -> Tuple[Any, Label]:
-        return sample(node.item), None
+    def sample(node: tags.ProcRestrictCombinations, sample: Recursor) -> Any:
+        return sample(node.item)
 
     @staticmethod
     def count(node: tags.ProcRestrictCombinations, count: Recursor) -> int:
@@ -392,7 +405,7 @@ class ProcRestrictCombinations(NodeHandler[tags.ProcRestrictCombinations, Any], 
         # return (next(item_iter) for _ in range(node.amount))
 
         # ... but we want to sample instead, as that result in a wider selection of variations.
-        # TODO: Check if this is correct.
+        # NOTE: This is special cased in iterate_variations_recursive function.
         from procgen_companion.procgen import sample_recursive
         return (sample_recursive(node.item, meta.Meta()) for _ in range(node.amount))
 
@@ -401,15 +414,15 @@ class ProcRestrictCombinations(NodeHandler[tags.ProcRestrictCombinations, Any], 
         return [node.amount, node.item]
 
 
-class ProcIf(NodeHandler[tags.ProcIf, Any], ProcGenNodeHandler):
+class ProcIf(NodeHandler[tags.ProcIf, util.MutablePlaceholder], ProcGenNodeHandler):
     @staticmethod
     def can_handle(node: Any) -> bool:
         return isinstance(node, tags.ProcIf)
 
     @staticmethod
-    def sample(node: tags.ProcIf, sample: Recursor) -> Tuple[util.MutablePlaceholder, Label]:
+    def sample(node: tags.ProcIf, sample: Recursor) -> util.MutablePlaceholder:
         proc_if = lambda root: ProcIf.__resolve_condition(node, root)
-        return util.MutablePlaceholder(proc_if), None
+        return util.MutablePlaceholder(proc_if)
 
     @staticmethod
     def count(node: tags.ProcIf, count: Recursor) -> int:
@@ -418,9 +431,8 @@ class ProcIf(NodeHandler[tags.ProcIf, Any], ProcGenNodeHandler):
         return 1
 
     @staticmethod
-    def iterate(node: tags.ProcIf, iterate: Recursor) -> Iterator[Any]:
-        # TODO: Remove if implement labelling for iteration.
-        proc_if = lambda root: ProcIf.__resolve_condition(node, root)[0]
+    def iterate(node: tags.ProcIf, iterate: Recursor) -> Iterator[util.MutablePlaceholder]:
+        proc_if = lambda root: ProcIf.__resolve_condition(node, root)
         placeholder = util.MutablePlaceholder(proc_if)
         return iter([placeholder])
 
