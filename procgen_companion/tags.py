@@ -69,8 +69,13 @@ class WithId():
 
 
 class CustomMappingTag(CustomTag):
-    flow_style = 'block'
+
+    # Note: All AnimalAI mapping specify an order of their fields for dumping.
+    # This allows us to:
+    # - Specify a fixed, sane, order for all the fields (e.g. x,y,z for Vector3)
+    # - Filter out meta-fields like 'id' that are not part of the AnimalAI spec.
     order: Optional[list[str]] = None
+    flow_style = 'block'
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -92,18 +97,11 @@ class CustomMappingTag(CustomTag):
 
     @classmethod
     def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:
-        # Note: We filter out the new 'id' field from the AnimalAI tags, as we don't want it to be printed.
-        # But also from the rest, even though might remove intentional 'id' fields, although uses are currently not known.
-        # TODO: ^ Clean the above up.
-
-        if cls.order is None:
-            fields = data.__dict__
-            fields_filtered = [(k, fields[k]) for k in fields.keys() if k != 'id']
-            return dumper.represent_mapping(f"!{cls.tag}", fields_filtered, flow_style=(cls.flow_style == 'flow'))
-
-        fields = data.__dict__
-        fields_ordered = [(k, fields[k]) for k in cls.order if k in fields]
-        return dumper.represent_mapping(f"!{cls.tag}", fields_ordered, flow_style=(cls.flow_style == 'flow'))
+        dd = data.__dict__
+        fields = (
+            list(dd.items()) if (cls.order is None) else  # Unordered
+            [(k, dd[k]) for k in cls.order if k in dd])  # Ordered
+        return dumper.represent_mapping(f"!{cls.tag}", fields, flow_style=(cls.flow_style == 'flow'))
 
     def __getitem__(self, item: Any) -> Any:
         return self.__dict__[item]
@@ -161,20 +159,23 @@ class CustomScalarTag(CustomTag):
 
 
 class Arena(CustomMappingTag, AnimalAITag, WithId):
+    # Optional meta information that will not be printed
     tag: str = "Arena"
     order = ['pass_mark', 't', 'items']
+    id: Optional[str]
 
+    # Actual fields
     pass_mark: Any
     t: Any
     items: Any
-    id: Optional[str]
 
 
 class ArenaConfig(CustomMappingTag, AnimalAITag, WithId):
     tag: str = "ArenaConfig"
+    order: list[str] = ['arenas']
+    id: Optional[str]
 
     arenas: dict[int, Arena] = {}
-    id: Optional[str]
 
     def __init__(self, arenas: dict[int, Arena]):
         self.arenas = arenas
@@ -189,35 +190,35 @@ class ArenaConfig(CustomMappingTag, AnimalAITag, WithId):
 class Item(CustomMappingTag, AnimalAITag, WithId):
     tag: str = "Item"
     order = ['name', 'positions', 'rotations', 'colors', 'sizes']
+    id: Optional[str]
 
     name: str
     positions: Any
     rotations: Any
     colors: Any
     sizes: Any
-    id: Optional[str]
 
 
 class Vector3(CustomMappingTag, AnimalAITag, WithId):
     tag: str = "Vector3"
     flow_style: str = 'flow'
     order = ['x', 'y', 'z']
+    id: Optional[str]
 
     x: Any
     y: Any
     z: Any
-    id: Optional[str]
 
 
 class RGB(CustomMappingTag, AnimalAITag, WithId):
     tag: str = "RGB"
     flow_style: str = 'flow'
     order = ['r', 'g', 'b']
+    id: Optional[str]
 
     r: Any
     g: Any
     b: Any
-    id: Optional[str]
 
 # ------------ Exception ------------
 
