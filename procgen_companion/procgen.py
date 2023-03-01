@@ -4,7 +4,6 @@ import csv
 from typing import *
 from pathlib import Path
 from dataclasses import dataclass
-from copy import deepcopy
 
 import yaml
 import tqdm
@@ -51,7 +50,7 @@ def procgen(args: Args):
         raise FileNotFoundError(args.path)
 
     # Add constructors and representers for the custom YAML tags
-    for tag in tags.GET_ANIMAL_AI_TAGS() + tags.GET_PROC_GEN_TAGS():
+    for tag in tags.GET_ANIMAL_AI_TAGS() + tags.GET_PROC_GEN_TAGS() + tags.GET_SPECIAL_TAGS():
         tag_name: str = f"!{tag.tag}"  # type: ignore
         yaml.SafeLoader.add_constructor(tag_name, tag.construct)
         yaml.SafeDumper.add_representer(tag, tag.represent)  # type: ignore
@@ -84,6 +83,8 @@ def procgen(args: Args):
     # - Python product consumes the full iterable before returning the first element.
 
     template: tags.ArenaConfig = yaml.load(args.path.read_text(), Loader=yaml.SafeLoader)
+    template_meta = template.get_proc_meta() or tags.TemplateMeta.default()
+    del template.proc_meta
 
     n_variations = count_recursive(template)
     print(f"Total possible variations: {n_variations}")
@@ -103,6 +104,8 @@ def procgen(args: Args):
 
     # Copy the template to the output directory
     if not args.prevent_template_copy:
+        template.proc_meta = template_meta.to_dict()
+        del template.proc_meta
         yaml.dump(template, open(output_dir / "template.yaml", "w"),
                   default_flow_style=False, Dumper=yaml.SafeDumper)
 
@@ -121,9 +124,11 @@ def procgen(args: Args):
     # Generate all requested variations
     meta_file = open(output_dir / "meta.csv", "w")
     for i, (variation, meta) in tqdm.tqdm(enumerate(iterator), total=amount):
-        # We need a second pass to fix !ProcIf's, as they need to access the final variations.
+        # We need a second pass to fix !ProcIf's and !ProcIfLabels, since they
+        # need to access the final variations.
         # We can't use yaml.dump's implicit pass, as id's are already removed from tags then.
 
+        # Fill in !ProcIf's MutablePlaceholders
         def fill_placeholder(node: Any) -> Any:
             if not isinstance(node, util.MutablePlaceholder):
                 return True  # Continue walk.
@@ -131,6 +136,9 @@ def procgen(args: Args):
             meta.add_label(label)
             return False  # Stop walking this branch.
         walk_tree(variation, fill_placeholder)
+
+        # Fill in !ProcIfLabels's
+        _ = [resolve_proc_if_labels(pil, variation, meta) for pil in template_meta.proc_labels]
 
         # TODO: We could only have the MutablePlaceholder have 1 lambda by overriding deepcopy behaviour.
         # we can populate it at the same time as we populate the dict of variables.
@@ -189,6 +197,21 @@ def walk_tree(node: Any, callback: Callable[[Any], bool]):
     if continue_:
         handler = handlers.get_node_handler(node)
         util.consume(walk_tree(child, callback) for child in handler.children(node))
+
+
+def resolve_proc_if_labels(pil: tags.ProcIfLabels, variation: Any, meta: Meta):
+    assert len(pil.labels) == len(pil.cases)
+    variables = pil.variable if isinstance(pil.variable, list) else [pil.variable]
+    idx, values = handlers.ConditionResolver.resolve(variables, pil.cases, variation)
+
+    # No matches
+    if idx == -1:
+        if pil.default is None:
+            raise ValueError(f"Could not find a matching case for {values} in {pil.variable}")
+        meta.add_label(pil.default)
+        return
+
+    meta.add_label(pil.labels[idx])
 
 
 if __name__ == "__main__":

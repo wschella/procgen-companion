@@ -178,7 +178,7 @@ Here (last case): if x=3 and z between 10 and 20 (inclusive), then we take 150.
 - The `then` field results is always a list. Its length equals the length of the outer list of the `cases` field.
 - The `default` is always a scalar, i.e. a number, a `!Vector3`, etc. It is an optional argument. If it is not provided, the tool will throw an error and stop execution when any variables take on a value that is not in the list of cases.
 
-TODO: On references. Generated yaml file. First part of the dot separated must refer to an `!Item` with the corresponding `id` field. All mappings can have an id (except !ProcIf)
+TODO: On references. Generated yaml file. First part of the dot separated must refer to an AnimalAI mapping (`!ArenaConfig`, `!Arena`, `!Item`, `!Vector3`, ...) with the corresponding `id` field.
 
 ```yaml
 # With only 1 variable
@@ -240,16 +240,17 @@ labels: [size_small, size_med, size_large]
   value: !Vector3 { x: 20, y: 1, z: 10 }
 ```
 
-There is also a new special section `proc_labels` in the beginning of the yaml file, which will not be present in the generate AnimalAI config, but allows you to specify independent labels. You have to use `!ProcIfLabels`, which works exactly like `!ProcIf`, but it will have the corresponding `then` value included in the filename.
+There is also a new special section `proc_meta` in the beginning of the yaml file, which will not be present in the generate AnimalAI config, but allows you to specify independent labels. You have to use `!ProcIfLabels`, which works exactly like `!ProcIf`, but it will have the corresponding `then` value included in the filename.
 
 ```yaml
 !ArenaConfig
-proc_labels:
-  - !ProcIfLabels
-    variable: [agent.positions.0.x, agents.positions.0.z]
-    cases: [[1, 5], [1, 7], [3, !R [10, 20]]]
-    labels: [dist_far, dist_close, dist_medium]
-    default: dist_default # Optional
+proc_meta:
+  proc_labels:
+    - !ProcIfLabels
+      variable: [agent.positions.0.x, agents.positions.0.z]
+      cases: [[1, 5], [1, 7], [3, !R [10, 20]]]
+      labels: [dist_far, dist_close, dist_medium]
+      default: dist_default # Optional
 arenas:
   0: !Arena
     items: # ...

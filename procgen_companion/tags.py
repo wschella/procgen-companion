@@ -42,7 +42,13 @@ def GET_PROC_GEN_TAGS() -> List[Type[CustomTag]]:
         ProcRepeatChoice,
         ProcRestrictCombinations,
         ProcIf,
-        Range
+    ]
+
+
+def GET_SPECIAL_TAGS() -> List[Type[CustomTag]]:
+    return [
+        Range,
+        ProcIfLabels,
     ]
 
 
@@ -65,6 +71,17 @@ class WithId():
     def get_id(self) -> Optional[str]:
         if hasattr(self, 'id'):
             return self.id
+        return None
+
+
+class WithTemplateMeta():
+    # This is only used for ArenaConfig, but we do this in a separate class
+    # such that proc_meta doesn't show in __dict__.
+    proc_meta: Optional[Dict[str, Any]]  # Might not be initialised to None
+
+    def get_proc_meta(self) -> Optional[TemplateMeta]:
+        if hasattr(self, 'proc_meta') and self.proc_meta is not None:
+            return TemplateMeta(**self.proc_meta)
         return None
 
 
@@ -158,33 +175,25 @@ class CustomScalarTag(CustomTag):
 # ------------ AnimalAI Tags ------------
 
 
-class Arena(CustomMappingTag, AnimalAITag, WithId):
+class ArenaConfig(CustomMappingTag, AnimalAITag, WithId, WithTemplateMeta):
     # Optional meta information that will not be printed
+    tag: str = "ArenaConfig"
+    order: list[str] = ['arenas']
+    proc_meta: Optional[dict[str, Any]]
+    id: Optional[str]
+
+    # Actual fields
+    arenas: dict[int, Arena] = {}
+
+
+class Arena(CustomMappingTag, AnimalAITag, WithId):
     tag: str = "Arena"
     order = ['pass_mark', 't', 'items']
     id: Optional[str]
 
-    # Actual fields
     pass_mark: Any
     t: Any
     items: Any
-
-
-class ArenaConfig(CustomMappingTag, AnimalAITag, WithId):
-    tag: str = "ArenaConfig"
-    order: list[str] = ['arenas']
-    id: Optional[str]
-
-    arenas: dict[int, Arena] = {}
-
-    def __init__(self, arenas: dict[int, Arena]):
-        self.arenas = arenas
-
-    @classmethod
-    def construct(cls, loader: yaml.Loader, node: yaml.nodes.MappingNode) -> Any:
-        mapping = loader.construct_mapping(node)
-        arenas: dict[int, Arena] = mapping['arenas']
-        return ArenaConfig(arenas)
 
 
 class Item(CustomMappingTag, AnimalAITag, WithId):
@@ -219,43 +228,6 @@ class RGB(CustomMappingTag, AnimalAITag, WithId):
     r: Any
     g: Any
     b: Any
-
-# ------------ Exception ------------
-
-
-class Range(CustomSequenceTag):
-    tag: str = "R"
-    flow_style: str = 'flow'
-
-    min: float
-    max: float
-
-    def __init__(self, value: list[float]) -> None:
-        self.min = value[0]
-        self.max = value[1]
-        if len(value) != 2:
-            raise ValueError(f"Range !R must have exactly 2 elements, got {len(value)}.")
-        if self.min > self.max:
-            raise ValueError(f"Range !R minimum {self.min} is greater than maximum {self.max}.")
-
-    def __setitem__(self, key: int, value: Any) -> None:
-        if key == 0:
-            self.min = value
-        elif key == 1:
-            self.max = value
-        else:
-            raise IndexError(f"Index {key} out of range for !R (max length 2)")
-
-    def __getitem__(self, item: Any) -> Any:
-        if item == 0:
-            return self.min
-        elif item == 1:
-            return self.max
-        else:
-            raise IndexError(f"Index {item} out of range for !R (max length 2)")
-
-    def __iter__(self) -> Iterator[Any]:
-        return iter([self.min, self.max])
 
 # ------------ ProcGen tags ------------
 
@@ -380,3 +352,74 @@ class ProcIf(CustomMappingTag, ProcGenTag):
         assert (isinstance(default_label, str)
                 ), f"!ProcIfLabelled default_label must be a string, got {default_label}"
         self.default_label = default_label
+
+# ------------ Exceptions ------------
+
+
+class ProcIfLabels(CustomMappingTag):
+    tag: str = "ProcIfLabels"
+
+    variable: Union[str, list[str]]
+    cases: list[Any]
+    labels: list[str]
+    default: Optional[str]
+
+    def __init__(self, variable: Union[str, list[str]], cases: list[Any], labels: list[str], default: Optional[str] = None):
+        self.variable = variable
+        self.labels = labels
+        self.cases = cases
+        self.default = default
+
+
+class TemplateMeta():
+    """
+    Not a tag for (weird?) verbosity reasons.
+    """
+    proc_labels: list[ProcIfLabels]
+
+    def __init__(self, proc_labels: Optional[list[ProcIfLabels]] = None):
+        self.proc_labels = proc_labels or []
+
+    @staticmethod
+    def default() -> TemplateMeta:
+        return TemplateMeta(proc_labels=[])
+
+    def to_dict(self) -> dict:
+        return {
+            'proc_labels': self.proc_labels
+        }
+
+
+class Range(CustomSequenceTag):
+    tag: str = "R"
+    flow_style: str = 'flow'
+
+    min: float
+    max: float
+
+    def __init__(self, value: list[float]) -> None:
+        self.min = value[0]
+        self.max = value[1]
+        if len(value) != 2:
+            raise ValueError(f"Range !R must have exactly 2 elements, got {len(value)}.")
+        if self.min > self.max:
+            raise ValueError(f"Range !R minimum {self.min} is greater than maximum {self.max}.")
+
+    def __setitem__(self, key: int, value: Any) -> None:
+        if key == 0:
+            self.min = value
+        elif key == 1:
+            self.max = value
+        else:
+            raise IndexError(f"Index {key} out of range for !R (max length 2)")
+
+    def __getitem__(self, item: Any) -> Any:
+        if item == 0:
+            return self.min
+        elif item == 1:
+            return self.max
+        else:
+            raise IndexError(f"Index {item} out of range for !R (max length 2)")
+
+    def __iter__(self) -> Iterator[Any]:
+        return iter([self.min, self.max])

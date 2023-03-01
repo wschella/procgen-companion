@@ -1,4 +1,11 @@
 !ArenaConfig
+proc_meta:
+  proc_labels:
+    - !ProcIfLabels
+      variable: [agent.positions.0.x, agent.positions.0.z]
+      cases: [[20, 1], [20, 7], [20, !R [10, 20]]]
+      labels: [meta_ex1, meta_ex2, meta_ex3]
+      default: meta_ex_default # Optional
 arenas:
   0: !Arena
     pass_mark: 0

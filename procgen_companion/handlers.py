@@ -468,30 +468,66 @@ class ProcIf(NodeHandler[tags.ProcIf, util.MutablePlaceholder], ProcGenNodeHandl
     @staticmethod
     def __resolve_condition(node: tags.ProcIf, root: Any) -> Tuple[Any, Label]:
         variables = node.variable if isinstance(node.variable, list) else [node.variable]
-        values = [ProcIf.__find_variable(variable, root) for variable in variables]
         labels: list[Any] = node.labels if node.labels else [cast(str, None)] * len(node.cases)
         assert (len(labels) == len(node.cases)), "Labels and cases must be the same length."
 
-        for idx, (case, then, label) in enumerate(zip(node.cases, node.then, labels)):
+        idx, values = ConditionResolver.resolve(variables, node.cases, root)
+        if idx == -1:
+            msg_pre = f"Could not find a matching case for {values} in {node.variable}"
+            if node.default is None:
+                raise ValueError(f"{msg_pre} and there is no default.")
+            if node.default_label is None and node.labels is not None:
+                raise ValueError(f"{msg_pre} and there is no default label.")
+            return node.default, node.default_label
+        return node.then[idx], labels[idx]
+
+
+HANDLERS: List[Type[NodeHandler]] = [
+    PlainSequence,
+    PlainMapping,
+    PlainScalar,
+    AnimalAIScalar,
+    AnimalAIMapping,
+    AnimalAISequence,
+    ProcList,
+    ProcListLabelled,
+    ProcColor,
+    ProcVector3Scaled,
+    ProcRepeatChoice,
+    ProcRestrictCombinations,
+    ProcIf,
+]
+
+
+def get_node_handler(node: Any) -> Type[NodeHandler]:
+    for handler in HANDLERS:
+        if handler.can_handle(node):
+            return handler
+    raise ValueError(f"Could not find a node class for {node}")
+
+
+class ConditionResolver():
+    @staticmethod
+    def resolve(variables: list[str], cases: List[Union[Any, tags.Range]], root: Any) -> Tuple[int, list[Any]]:
+        values = [ConditionResolver.__find_variable(variable, root) for variable in variables]
+
+        for idx, case in enumerate(cases):
             case = case if isinstance(case, list) else [case]
             if len(case) != len(values):
                 msg = f"Length of case {idx} {case} does not match with variables {variables}."
                 raise ValueError(msg)
 
-            if all(ProcIf.__matches(v1, v2) for v1, v2 in zip(values, case)):
-                return then, label
+            if all(ConditionResolver.__matches(v1, v2) for v1, v2 in zip(values, case)):
+                return idx, values
 
-        if node.default is not None:
-            return node.default, node.default_label
-
-        raise ValueError(f"Could not find a matching case for {values} in {node.variable}")
+        return -1, values
 
     @staticmethod
     def __find_variable(variable: str, root: Any) -> Any:
         item_id, *path_ = variable.split(".")
-        item = ProcIf.__find_item(item_id, root)
+        item = ConditionResolver.__find_item(item_id, root)
         if item is None:
-            raise ValueError(f"Could not find item with id {item_id}.")
+            raise ValueError(f"Could not find item with id {item_id} for variable {variable}.")
 
         # Deal with list indices
         path = [int(key) if key.isdigit() else key for key in path_]
@@ -534,28 +570,5 @@ class ProcIf(NodeHandler[tags.ProcIf, util.MutablePlaceholder], ProcGenNodeHandl
         # Guaranteed static node now (no !Proc tags)
         handler = get_node_handler(node)
         children = handler.children(cast(Any, node))
-        return next((node for child in children if (node := ProcIf.__find_item(item_id, child)) is not None), None)
-
-
-HANDLERS: List[Type[NodeHandler]] = [
-    PlainSequence,
-    PlainMapping,
-    PlainScalar,
-    AnimalAIScalar,
-    AnimalAIMapping,
-    AnimalAISequence,
-    ProcList,
-    ProcListLabelled,
-    ProcColor,
-    ProcVector3Scaled,
-    ProcRepeatChoice,
-    ProcRestrictCombinations,
-    ProcIf,
-]
-
-
-def get_node_handler(node: Any) -> Type[NodeHandler]:
-    for handler in HANDLERS:
-        if handler.can_handle(node):
-            return handler
-    raise ValueError(f"Could not find a node class for {node}")
+        generator = (ConditionResolver.__find_item(item_id, child) for child in children)
+        return next((node for node in generator if node is not None), None)
