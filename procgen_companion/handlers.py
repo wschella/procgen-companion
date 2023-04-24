@@ -1,6 +1,7 @@
 from typing import *
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from textwrap import dedent
 import random
 import functools
 import operator
@@ -353,7 +354,7 @@ class ProcVector3Scaled(NodeHandler[tags.ProcVector3Scaled, tags.Vector3], ProcG
 
     @staticmethod
     def sample(node: tags.ProcVector3Scaled, sample: Recursor) -> WithMeta[tags.Vector3]:
-        base = deepcopy(node.base) if node.base is not None else tags.Vector3(x=0, y=0, z=0)
+        base = deepcopy(node.base) if node.base is not None else tags.Vector3(x=1, y=1, z=1)
         scale_idx = random.randint(0, len(node.scales) - 1)
         scale = node.scales[scale_idx]
 
@@ -370,7 +371,7 @@ class ProcVector3Scaled(NodeHandler[tags.ProcVector3Scaled, tags.Vector3], ProcG
 
     @staticmethod
     def iterate(node: tags.ProcVector3Scaled, iterate: Recursor) -> Iterator[WithMeta[tags.Vector3]]:
-        base = node.base if node.base is not None else tags.Vector3(x=0, y=0, z=0)
+        base = node.base if node.base is not None else tags.Vector3(x=1, y=1, z=1)
         generator = (scale_vector3(deepcopy(base), scale) for scale in node.scales)
 
         if node.labels is None:
@@ -466,22 +467,28 @@ class ProcIf(NodeHandler[tags.ProcIf, util.MutablePlaceholder], ProcGenNodeHandl
     @staticmethod
     def children(node: tags.ProcIf) -> list[Any]:
         default = [node.default] if node.default is not None else []
-        return [node.variable, node.cases, node.then, default]
+        return [node.value, node.cases, node.then, default]
 
     @staticmethod
     def __resolve_condition(node: tags.ProcIf, root: Any) -> Tuple[Any, Label]:
-        variables = node.variable if isinstance(node.variable, list) else [node.variable]
+        variables = node.value if isinstance(node.value, list) else [node.value]
         labels: list[Any] = node.labels if node.labels else [cast(str, None)] * len(node.cases)
         assert (len(labels) == len(node.cases)), "Labels and cases must be the same length."
 
         idx, values = ConditionResolver.resolve(variables, node.cases, root)
         if idx == -1:
-            msg_pre = f"Could not find a matching case for {values} in {node.variable}"
+            # Format error message. Reformat value as given (list or scalar) to avoid confusion.
+            values = values if isinstance(node.value, list) else values[0]
+            msg_pre = f"Could not find a matching case for {node.value} = {values} in {node.cases}"
+            msg_post = util.pprint(node)
             if node.default is None:
-                raise ValueError(f"{msg_pre} and there is no default.")
+                raise ValueError(f"{msg_pre} and there is no default\n{msg_post}")
             if node.default_label is None and node.labels is not None:
-                raise ValueError(f"{msg_pre} and there is no default label.")
+                raise ValueError(f"{msg_pre} and there is no default label.\n{msg_post}")
+
+            # Happy path with defaults
             return node.default, node.default_label
+
         return node.then[idx], labels[idx]
 
 
@@ -517,7 +524,11 @@ class ConditionResolver():
         for idx, case in enumerate(cases):
             case = case if isinstance(case, list) else [case]
             if len(case) != len(values):
-                msg = f"Length of case {idx} {case} does not match with variables {variables}."
+                msg = dedent(f"""
+                Length of case {idx+1} is {len(case)} and does not match with length {len(variables)} of variables.
+                Case {idx+1}: {case}
+                Variables: {variables}
+                """)
                 raise ValueError(msg)
 
             if all(ConditionResolver.__matches(v1, v2) for v1, v2 in zip(values, case)):
@@ -530,7 +541,9 @@ class ConditionResolver():
         item_id, *path_ = variable.split(".")
         item = ConditionResolver.__find_item(item_id, root)
         if item is None:
-            raise ValueError(f"Could not find item with id {item_id} for variable {variable}.")
+            raise ValueError(dedent(f"""
+            Could not find an Item with id '{item_id}', but it is need for variable '{variable}'.
+            Did you forget to specify it?"""))
 
         # Deal with list indices
         path = [int(key) if key.isdigit() else key for key in path_]

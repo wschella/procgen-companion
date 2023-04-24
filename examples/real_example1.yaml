@@ -27,14 +27,14 @@ arenas:
               !Vector3 { x: 20, y: 1, z: 30 },
             ]
 
-        # Read as "if variable is in range 0 to 20, then select 0 else select the default".
-        # Variable is an index string, that starts with an existing id, and then progressively
+        # Read as "if value is in range 0 to 20, then select 0 else select the default".
+        # Value is an index string, that starts with an existing id, and then progressively
         # accesses values of the item represented by that id.
         # Here, this is the concrete trail explained: Item with id `agent`, the list of positions,
         # the 0'th element of that list, field z of the Vector3 that will be placed there.
         rotations:
           - !ProcIf
-            variable: GoodGoal.sizes.0.x
+            value: GoodGoal.sizes.0.x
             cases: [!R [1, 2]] # 2 inclusive
             then: [0]
             default: 180

@@ -87,7 +87,12 @@ def procgen_wrapper(args: Args):
             for template in [Path(dir) / filename for filename in files]:
                 print(f"Processing {template}")
                 new_args: Dict[str, Any] = vars(args) | {"path": template}
-                procgen(Args(**new_args))
+
+                try:
+                    procgen_wrapper(Args(**new_args))
+                except Exception as e:
+                    e.add_note(f"Template: {template}.")
+                    raise e
 
 
 def procgen(args: Args):
@@ -222,13 +227,14 @@ def walk_tree(node: Any, callback: Callable[[Any], bool]):
 
 def resolve_proc_if_labels(pil: tags.ProcIfLabels, variation: Any, meta: Meta):
     assert len(pil.labels) == len(pil.cases)
-    variables = pil.variable if isinstance(pil.variable, list) else [pil.variable]
+    variables = pil.value if isinstance(pil.value, list) else [pil.value]
     idx, values = handlers.ConditionResolver.resolve(variables, pil.cases, variation)
 
     # No matches
     if idx == -1:
         if pil.default is None:
-            raise ValueError(f"Could not find a matching case for {values} in {pil.variable}")
+            msg = f"Could not find a matching case for {variables} = {values} in {pil.cases} and there is no default."
+            raise ValueError(msg)
         meta.add_label(pil.default)
         return
 

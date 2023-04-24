@@ -68,6 +68,13 @@ def allstatic(cls):
     return cls
 
 
+def pprint(node: Any) -> str:
+    """
+    Pretty print a node.
+    """
+    return yaml.dump(node, default_flow_style=False, sort_keys=False, Dumper=yaml.SafeDumper)
+
+
 def consume(iterator, n=None):
     """
     Advance the iterator n-steps ahead. If n is None, consume entirely.

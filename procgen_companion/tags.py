@@ -222,6 +222,15 @@ class Vector3(CustomMappingTag, AnimalAITag, WithId):
     y: Any
     z: Any
 
+    def __init__(self, x: Any, y: Any, z: Any) -> None:
+        if isinstance(x, list) or isinstance(y, list) or isinstance(z, list):
+            raise ValueError(
+                f"Vector3 fields x, y, z can not be lists. Got: x={x}, y={y}, z={z}.")
+
+        self.x = x
+        self.y = y
+        self.z = z
+
 
 class RGB(CustomMappingTag, AnimalAITag, WithId):
     tag: str = "RGB"
@@ -333,7 +342,7 @@ class ProcRestrictCombinations(CustomMappingTag, ProcGenTag):
 class ProcIf(CustomMappingTag, ProcGenTag):
     tag: str = "ProcIf"
 
-    variable: Union[str, list[str]]
+    value: Union[str, list[str]]
     cases: List[Any]
     then: List[Any]
     default: Optional[Any]
@@ -342,13 +351,13 @@ class ProcIf(CustomMappingTag, ProcGenTag):
 
     def __init__(
             self,
-            variable: Union[str, list[str]],
+            value: Union[str, list[str]],
             cases: List[Any],
             then: List[Any],
             default: Optional[Any] = None,
             labels: Optional[list[str]] = None,
             default_label: Optional[str] = None):
-        self.variable = variable
+        self.value = value
         self.cases = cases
         self.then = then
         self.default = default
@@ -361,13 +370,13 @@ class ProcIf(CustomMappingTag, ProcGenTag):
 class ProcIfLabels(CustomMappingTag):
     tag: str = "ProcIfLabels"
 
-    variable: Union[str, list[str]]
+    value: Union[str, list[str]]
     cases: list[Any]
     labels: list[str]
     default: Optional[str]
 
-    def __init__(self, variable: Union[str, list[str]], cases: list[Any], labels: list[str], default: Optional[str] = None):
-        self.variable = variable
+    def __init__(self, value: Union[str, list[str]], cases: list[Any], labels: list[str], default: Optional[str] = None):
+        self.value = value
         self.labels = labels
         self.cases = cases
         self.default = default
