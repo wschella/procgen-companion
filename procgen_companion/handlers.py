@@ -79,6 +79,9 @@ def extract_meta(children: Sequence[Tuple[Any, Meta]]) -> Meta:
 
 
 def extract_children(children: Sequence[Tuple[Any, Meta]]) -> List[Any]:
+    """
+    Extract children from a list of (child, meta) tuples.
+    """
     return list(value[0] for value in children)
 
 ############################################################################
@@ -101,7 +104,7 @@ class PlainSequence(NodeHandler[list, list], StaticNodeHandler):
         return Util.count(PlainSequence.children(node), count)
 
     @staticmethod
-    def iterate(node: list, iterate: Recursor) -> Iterator[Tuple[list, Meta]]:
+    def iterate(node: list, iterate: Recursor) -> Iterator[WithMeta[list]]:
         # We need to force early binding of the child here. https://stackoverflow.com/q/7368522/6182278
         child_iterators = [(lambda c=child: iterate(c)) for child in node]
         product_generator = util.product(*child_iterators)
@@ -286,7 +289,7 @@ class ProcList(NodeHandler[tags.ProcList, Any], ProcGenNodeHandler):
 
     @staticmethod
     def iterate(node: tags.ProcList, iterate: Recursor) -> Iterator[Tuple[Any, Meta]]:
-        return (deepcopy(option) for option in node.options)
+        return ((deepcopy(option), Meta()) for option in node.options)
 
     @staticmethod
     def children(node: tags.ProcList) -> list[Any]:

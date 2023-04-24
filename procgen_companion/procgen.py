@@ -1,6 +1,7 @@
 import argparse
 import random
 import csv
+import os
 from typing import *
 from pathlib import Path
 from dataclasses import dataclass
@@ -24,13 +25,14 @@ def run():
     parser.add_argument('-m', '--max', type=int, default=10000)
     parser.add_argument('-s', '--seed', type=int, default=1234)
     parser.add_argument('-o', '--output', type=Path)
-    parser.add_argument('--prevent-template-copy', type=bool, default=False)
+    parser.add_argument('--prevent-template-copy', action=argparse.BooleanOptionalAction)
     parser.add_argument('--head', type=int)
     parser.add_argument('--sample', type=int)
+    parser.add_argument('-r', '--recursive', action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
 
     # Start procgen
-    procgen(Args(**vars(args)))
+    procgen_wrapper(Args(**vars(args)))
 
 
 @dataclass
@@ -42,9 +44,10 @@ class Args:
     output: Optional[Path] = None
     head: Optional[int] = None
     sample: Optional[int] = None
+    recursive: bool = False
 
 
-def procgen(args: Args):
+def procgen_wrapper(args: Args):
 
     if not args.path.exists():
         raise FileNotFoundError(args.path)
@@ -65,26 +68,32 @@ def procgen(args: Args):
     # Set Python random seed for hopefully deterministic generation
     random.seed(args.seed)
 
-    # Design notes:
-    # - The ProcIf needs acces to the global state
-    # - Tags in filenames probably need to update some global state?
-    # - There are leaf nodes & non-leaf nodes
-    # - There are YAML mappings, list, and scalars.
-    #   - These are represented as pure Python objects.
-    #   - They can still contain, AnimalAI tags or ProcGen tags inside.
-    # - There are AnimalAI tags
-    #   - These get parsed into the custom tags we have defined.
-    # - There are ProcGen tags.
-    # - We need following functionalities with possibly different behaviour per node:
-    #   - Counting the number of variations
-    #   - Iterating through variations in order
-    #   - Sampling a random variation
-    #   - Returning a list of children
-    # - Python product consumes the full iterable before returning the first element.
+    # Normal template file
+    if not args.path.is_dir():
+        procgen(args)
 
+    # If supplied path is a directory, recurse through it
+    # TODO: Should be a separate command, we might want to skip files already having variations,
+    # delete variations, catch errors, etc.
+    else:
+        if not args.recursive:
+            raise ValueError("Cannot process directories without --recursive")
+
+        for dir, _subdirs, files in os.walk(args.path):
+            # Skip *_variations directory, won't contain templates.
+            # TODO: Make this configurable in some way
+            if dir.endswith("variations"):
+                continue
+            for template in [Path(dir) / filename for filename in files]:
+                print(f"Processing {template}")
+                new_args: Dict[str, Any] = vars(args) | {"path": template}
+                procgen(Args(**new_args))
+
+
+def procgen(args: Args):
     template: tags.ArenaConfig = yaml.load(args.path.read_text(), Loader=yaml.SafeLoader)
     template_meta = template.get_proc_meta() or tags.TemplateMeta.default()
-    del template.proc_meta
+    template.del_proc_meta()  # We don't want to save this in the output
 
     n_variations = count_recursive(template)
     print(f"Total possible variations: {n_variations}")
@@ -108,6 +117,23 @@ def procgen(args: Args):
         del template.proc_meta
         yaml.dump(template, open(output_dir / "template.yaml", "w"),
                   default_flow_style=False, Dumper=yaml.SafeDumper)
+
+    # Design notes:
+    # - The ProcIf needs acces to the global state
+    # - Tags in filenames probably need to update some global state?
+    # - There are leaf nodes & non-leaf nodes
+    # - There are YAML mappings, list, and scalars.
+    #   - These are represented as pure Python objects.
+    #   - They can still contain, AnimalAI tags or ProcGen tags inside.
+    # - There are AnimalAI tags
+    #   - These get parsed into the custom tags we have defined.
+    # - There are ProcGen tags.
+    # - We need following functionalities with possibly different behaviour per node:
+    #   - Counting the number of variations
+    #   - Iterating through variations in order
+    #   - Sampling a random variation
+    #   - Returning a list of children
+    # - Python product consumes the full iterable before returning the first element.
 
     # Sample or iterate over all possible variations
     if args.sample is not None:
@@ -139,11 +165,6 @@ def procgen(args: Args):
 
         # Fill in !ProcIfLabels's
         _ = [resolve_proc_if_labels(pil, variation, meta) for pil in template_meta.proc_labels]
-
-        # TODO: We could only have the MutablePlaceholder have 1 lambda by overriding deepcopy behaviour.
-        # we can populate it at the same time as we populate the dict of variables.
-        # Should review all deepcopy behaviour? don't know if yaml.dump mutates anything tho.
-        # We shouldn't optimise too early tho. Likely bottlenecked by OS file creation anyway.
 
         # Save variation to file
         labels = f"_{'_'.join(meta.labels)}" if meta.labels else ""

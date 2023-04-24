@@ -84,6 +84,10 @@ class WithTemplateMeta():
             return TemplateMeta(**self.proc_meta)
         return None
 
+    def del_proc_meta(self) -> None:
+        if hasattr(self, 'proc_meta'):
+            del self.proc_meta
+
 
 class CustomMappingTag(CustomTag):
 
@@ -269,7 +273,7 @@ class ProcListLabelled(CustomSequenceTag, ProcGenTag):
 
 
 def new_labelled_option(option) -> LabelledOption:
-    msg = f"!ProcIfLabelled items must be a mapping of (value, label) got {option}"
+    msg = f"!ProcListLabelled items must be a mapping of (value, label) got {option}"
     assert isinstance(option, dict), msg
     assert 'label' in option, msg
     assert 'value' in option, msg
@@ -349,8 +353,6 @@ class ProcIf(CustomMappingTag, ProcGenTag):
         self.then = then
         self.default = default
         self.labels = labels
-        assert (isinstance(default_label, str)
-                ), f"!ProcIfLabelled default_label must be a string, got {default_label}"
         self.default_label = default_label
 
 # ------------ Exceptions ------------
