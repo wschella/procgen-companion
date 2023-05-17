@@ -8,8 +8,14 @@ This repo provides a format for specifying a _task template_, a specification of
 
 ## To Do's
 
+- [ ] Please cite as ...
+- [ ] ProcIfs that refer to each other
+- [ ] Lower Python requirement to 3.9
 - [ ] Check first if template is valid YAML and give a dedicated error message. Also give dedicated messages for common problems, e.g. if it contains tabs.
 - [ ] Check common misspellings like !Proclist, !Profif, !Prociff
+- [ ] Disallow dots in id's
+- [ ] Missing mandatory fields
+- [ ] ProcIf value is a list, but has no brackets (i.e. interpreted as single string, can check for with presence of comma's)
 - [ ] Check common mistakes
   - [ ] pass_mark is a list
   - [ ] forgetting proc_meta (but having proc_labels)
@@ -185,6 +191,7 @@ Here (last case): if x=3 and z between 10 and 20 (inclusive), then we take 150.
 - The `default` is always a scalar, i.e. a number, a `!Vector3`, etc. It is an optional argument. If it is not provided, the tool will throw an error and stop execution when any variables take on a value that is not in the list of cases.
 
 TODO: On references. Generated yaml file. First part of the dot separated must refer to an AnimalAI mapping (`!ArenaConfig`, `!Arena`, `!Item`, `!Vector3`, ...) with the corresponding `id` field.
+TODO: !ProcIf's can refer to other values decided by !ProcIf's (not circular of course). Add example for this.
 
 ```yaml
 # With only 1 variable

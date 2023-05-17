@@ -42,6 +42,7 @@ arenas:
       # In this item, we only vary the color. While the static color was a concrete one,
       # this !ProcColor will fill in  an amount of different values equal to the number given.
       # The static item is shown below as a reference. The fields could have been kept as well.
+      # TODO: Add original fields back?
       - !Item
         colors:
           - !ProcColor 5

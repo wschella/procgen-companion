@@ -163,7 +163,14 @@ def procgen(args: Args):
         def fill_placeholder(node: Any) -> Any:
             if not isinstance(node, util.MutablePlaceholder):
                 return True  # Continue walk.
-            _value, label = node.fill(variation)
+
+            if node.is_filled():
+                # This can occur when a !ProcIf refers to another !ProcIf
+                # which causes the dependencies to already be filled.
+                _value, label = node.value, node.label
+            else:
+                _value, label = node.fill(variation)
+
             meta.add_label(label)
             return False  # Stop walking this branch.
         walk_tree(variation, fill_placeholder)
@@ -226,7 +233,8 @@ def walk_tree(node: Any, callback: Callable[[Any], bool]):
 
 
 def resolve_proc_if_labels(pil: tags.ProcIfLabels, variation: Any, meta: Meta):
-    assert len(pil.labels) == len(pil.cases)
+    assert len(pil.labels) == len(pil.cases), \
+        f"!ProcIfLabels has a different number of cases ({len(pil.cases)}) vs. labels ({len(pil.labels)}). They should be equal."
     variables = pil.value if isinstance(pil.value, list) else [pil.value]
     idx, values = handlers.ConditionResolver.resolve(variables, pil.cases, variation)
 

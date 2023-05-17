@@ -210,6 +210,7 @@ class Item(CustomMappingTag, AnimalAITag, WithId):
     rotations: Any
     colors: Any
     sizes: Any
+    symbolNames: Any
 
 
 class Vector3(CustomMappingTag, AnimalAITag, WithId):

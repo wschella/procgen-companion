@@ -105,18 +105,26 @@ class MutablePlaceholder():
 
     proc_if: Callable[[Any], Any]
     value: Optional[Any]
+    label: Optional[str]
 
     def __init__(self, proc_if: Callable[[Any], Any]):
         self.proc_if = proc_if
         self.value = None
 
     def fill(self, root: Any):
-        self.value, label = self.proc_if(root)
-        return self.value, label
+        self.value, self.label = self.proc_if(root)
+        return self.value, self.label
+
+    def is_filled(self):
+        return self.value is not None
+
+    def __getitem__(self, key):
+        if self.value is None:
+            raise ValueError("MutablePlaceholder has not been filled yet. Programmer error.")
+        return self.value[key]
 
     @classmethod
     def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:
         if data.value is None:
-            # return dumper.represent_data(None)
             raise ValueError("MutablePlaceholder has not been filled yet. Programmer error.")
         return dumper.represent_data(data.value)

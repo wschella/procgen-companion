@@ -305,7 +305,7 @@ class ProcListLabelled(NodeHandler[tags.ProcListLabelled, Any], ProcGenNodeHandl
     @staticmethod
     def sample(node: tags.ProcListLabelled, sample: Recursor) -> WithMeta[Any]:
         option: tags.LabelledOption = deepcopy(random.choice(node.options))
-        return deepcopy(option["value"]), Meta(labels=[option["label"]])
+        return option["value"], Meta(labels=[option["label"]])
 
     @staticmethod
     def count(node: tags.ProcListLabelled, count: Recursor) -> int:
@@ -313,7 +313,7 @@ class ProcListLabelled(NodeHandler[tags.ProcListLabelled, Any], ProcGenNodeHandl
 
     @staticmethod
     def iterate(node: tags.ProcListLabelled, iterate: Recursor) -> Iterator[WithMeta[Any]]:
-        return ((deepcopy(option["value"]), Meta(labels=[option["label"]])) for option in node.options)
+        return ((deepcopy(option["value"]), Meta(labels=[deepcopy(option["label"])])) for option in node.options)
 
     @staticmethod
     def children(node: tags.ProcListLabelled) -> list[Any]:
@@ -548,11 +548,19 @@ class ConditionResolver():
         # Deal with list indices
         path = [int(key) if key.isdigit() else key for key in path_]
 
-        # All custom tags implement __getitem__, as do dicts and list.
-        # Scalars will raise an exception.
-        value = item
-        for key in path:
-            value = value[key]
+        # All custom tags implement __getitem__, as do dicts and list, as do MutablePlaceholders.
+        # Scalars and misspellings will raise an exception that we catch for better error messages.
+        try:
+            value = item
+            for key in path:
+                value = value[key]
+                if isinstance(value, util.MutablePlaceholder) and not value.is_filled():
+                    # When a !ProcIf refers to another !ProcIf, it might not be filled yet when resolving this condition.
+                    value.fill(root)
+        except Exception as e:
+            e.add_note(f"Could not find variable '{variable}' in Item '{item_id}'.")
+            raise e
+
         return value
 
     @staticmethod
