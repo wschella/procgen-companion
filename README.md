@@ -2,14 +2,27 @@
 
 **NOTE: Work-in-progress. Not ready yet**
 
-An AnimalAI companion tool for procedural generation of task variations.
+An AnimalAI companion tool for procedural generation of environments.
 
 This repo provides a format for specifying a _task template_, a specification of all the possible variations of a task, plus a command line tool to read such a template and programmatically generate the specified variations.
 
+## Citation
+
+If you use this software, please cite it as below.
+
+```bibtex
+@software{Schellaert_ProcGen_2023,
+  author = {Schellaert, Wout},
+  title = {{AnimalAI Procedural Generation Companion}},
+  url = {https://github.com/wschella/procgen-companion},
+  version = {0.1.0},
+  month = {5},
+  year = {2023}
+}
+```
+
 ## To Do's
 
-- [ ] Please cite as ...
-- [ ] ProcIfs that refer to each other
 - [ ] Lower Python requirement to 3.9
 - [ ] Check first if template is valid YAML and give a dedicated error message. Also give dedicated messages for common problems, e.g. if it contains tabs.
 - [ ] Check common misspellings like !Proclist, !Profif, !Prociff

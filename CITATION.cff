@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Schellaert"
+    given-names: "Wout"
+    orcid: "https://orcid.org/0000-0002-9182-4747"
+title: "AnimalAI Procedural Generation Companion"
+version: 2.0.4
+date-released: 2023-05-17
+url: "https://github.com/wschella/procgen-companion"
