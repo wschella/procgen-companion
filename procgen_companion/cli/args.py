@@ -36,6 +36,8 @@ class Args:
 class BulkArgs:
     path: Path
     seed: int
+    ignore_dirs: List[str]
+    ignore_hidden: bool = True
     prevent_template_copy: bool = False
 
     @staticmethod
@@ -46,6 +48,8 @@ class BulkArgs:
         )
         parser.add_argument('path', type=Path)
         parser.add_argument('-s', '--seed', type=int, default=1234)
+        parser.add_argument('-i', '--ignore-dirs', nargs='+', default=[])
+        parser.add_argument('--ignore-hidden', action=argparse.BooleanOptionalAction)
         parser.add_argument('--prevent-template-copy', action=argparse.BooleanOptionalAction)
         args_raw = parser.parse_args()
         return BulkArgs(**vars(args_raw))

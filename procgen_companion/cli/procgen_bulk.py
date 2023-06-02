@@ -21,11 +21,12 @@ def run():
         raise ValueError(
             "Path must be a directory. Do you mean to use regular `procgen` instead of `procgen-bulk`?")
 
-    for dir, _subdirs, files in os.walk(args.path):
-        # Skip *_variations directory, won't contain templates.
-        # TODO: Make this configurable in some way
-        if dir.endswith("variations"):
-            continue
+    for dir, _subdirs, files in os.walk(args.path, topdown=True):
+        # Exclude ignored directories
+        # https://stackoverflow.com/questions/19859840/excluding-directories-in-os-walk
+        if args.ignore_dirs:
+            _subdirs[:] = [d for d in _subdirs if d not in args.ignore_dirs]
+
         for template in [Path(dir) / filename for filename in files]:
             try:
                 handle_template(args, template)
