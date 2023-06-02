@@ -10,10 +10,11 @@ packages    = [{ include = "procgen_companion" }]
 [tool.poetry.dependencies]
 python = "^3.11"
 PyYAML = "^6.0"
-tqdm = "^4.64.1"
+tqdm   = "^4.64.1"
 
 [tool.poetry.scripts]
-procgen = 'procgen_companion.procgen:run'
+procgen      = 'procgen_companion.cli.procgen:run'
+procgen-bulk = 'procgen_companion.cli.procgen_bulk:run'
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.0"

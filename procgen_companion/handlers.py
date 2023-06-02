@@ -434,7 +434,7 @@ class ProcRestrictCombinations(NodeHandler[tags.ProcRestrictCombinations, Any], 
         # return (next(item_iter) for _ in range(node.amount))
 
         # ... but we want to sample instead, as that result in a wider selection of variations.
-        from procgen_companion.procgen import sample_recursive
+        from procgen_companion.core import sample_recursive
         return (sample_recursive(node.item) for _ in range(node.amount))
 
     @staticmethod
@@ -492,6 +492,46 @@ class ProcIf(NodeHandler[tags.ProcIf, util.MutablePlaceholder], ProcGenNodeHandl
         return node.then[idx], labels[idx]
 
 
+class ProcIfLabels(NodeHandler[tags.ProcIfLabels, util.MutablePlaceholder], ProcGenNodeHandler):
+    @staticmethod
+    def can_handle(node: Any) -> bool:
+        return isinstance(node, tags.ProcIfLabels)
+
+    @staticmethod
+    def count(node: tags.ProcIfLabels, count: Recursor) -> int:
+        return 1
+
+    @staticmethod
+    def sample(node: tags.ProcIfLabels, sample: Recursor) -> WithMeta[util.MutablePlaceholder]:
+        raise ValueError(".sample should not be called on ProcIfLabels.")
+
+    @staticmethod
+    def iterate(node: tags.ProcIfLabels, iterate: Recursor) -> Iterator[WithMeta[util.MutablePlaceholder]]:
+        raise ValueError(".iterate should not be called on ProcIfLabels.")
+
+    @staticmethod
+    def children(node: tags.ProcIfLabels) -> list[Any]:
+        default = [node.default] if node.default is not None else []
+        return [node.value, node.cases, default]
+
+    @staticmethod
+    def resolve(node: tags.ProcIfLabels, variation: Any, meta: Meta) -> None:
+        assert len(node.labels) == len(node.cases), \
+            f"!ProcIfLabels has a different number of cases ({len(node.cases)}) vs. labels ({len(node.labels)}). They should be equal."
+        variables = node.value if isinstance(node.value, list) else [node.value]
+        idx, values = ConditionResolver.resolve(variables, node.cases, variation)
+
+        # No matches
+        if idx == -1:
+            if node.default is None:
+                msg = f"Could not find a matching case for {variables} = {values} in {node.cases} and there is no default."
+                raise ValueError(msg)
+            meta.add_label(node.default)
+            return
+
+        meta.add_label(node.labels[idx])
+
+
 HANDLERS: List[Type[NodeHandler]] = [
     PlainSequence,
     PlainMapping,
@@ -506,6 +546,7 @@ HANDLERS: List[Type[NodeHandler]] = [
     ProcRepeatChoice,
     ProcRestrictCombinations,
     ProcIf,
+    ProcIfLabels,
 ]
 
 
