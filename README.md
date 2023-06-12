@@ -1,10 +1,12 @@
 # Procedural Generation Companion
 
-**NOTE: Work-in-progress. Not ready yet**
+A companion tool for the AnimalAI.
 
-An AnimalAI companion tool for procedural generation of environments.
+Specify task templates and procedurally generate all possible variations.
 
-This repo provides a format for specifying a _task template_, a specification of all the possible variations of a task, plus a command line tool to read such a template and programmatically generate the specified variations.
+## Install
+
+`pip install git+https://github.com/wschella/procgen-companion.git`
 
 ## Citation
 
@@ -21,27 +23,15 @@ If you use this software, please cite it as below.
 }
 ```
 
-## To Do's
-
-- [ ] Lower Python requirement to 3.9
-- [ ] Check first if template is valid YAML and give a dedicated error message. Also give dedicated messages for common problems, e.g. if it contains tabs.
-- [ ] Check common misspellings like !Proclist, !Profif, !Prociff
-- [ ] Disallow dots in id's
-- [ ] Missing mandatory fields
-- [ ] ProcIf value is a list, but has no brackets (i.e. interpreted as single string, can check for with presence of comma's)
-- [ ] Check common mistakes
-  - [ ] pass_mark is a list
-  - [ ] forgetting proc_meta (but having proc_labels)
-
 ## Usage
 
-Run `procgen path/to/template.yaml`.
+A procgen template is structured like an AnimalAI `.yaml` file, but one can make use of certain special tags like `!ProcList`, `!ProcColor`, `!ProcIf` that define the allowed variations of a field's value.
 
-The tool will then procedurally generate all possible task variations and save them in the directory `path/to/file_variations/`.
+Run `procgen path/to/template.yaml`...
 
-A procgen-template is structured like an AnimalAI .yaml file, but one can make use of certain special tags like `!ProcList`, `!ProcColor`, `!ProcIf` that define the allowed variations of a field's value. The procgen-companion tool will then generate all possible combinations of these fields, and output a .yaml file usable by the AnimalAI environment for each combination.
+... and the procgen-companion tool will generate all possible combinations of these fields, and output a `.yaml` file for each variation in `path/to/template_variations/`, which are directly usable by the AnimalAI environment.
 
-As an example, take following .yaml file. It is not a valid AnimalAI config, but that doesn't matter right now:
+The example below is not a valid AnimalAI config, but that doesn't matter right now.
 
 ```yaml
 # example.template.yaml
