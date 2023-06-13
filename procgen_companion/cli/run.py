@@ -16,7 +16,7 @@ def run():
     if isinstance(args, c.GenerateBulk):
         raise NotImplementedError("Bulk generation is not yet implemented.")
     elif isinstance(args, c.SampleBulk):
-        raise NotImplementedError("Bulk sampling is not yet implemented.")
+        commands.sample_bulk(args)
     elif isinstance(args, c.CountBulk):
         commands.count_bulk(args)
     elif isinstance(args, c.Generate):

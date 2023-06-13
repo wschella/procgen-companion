@@ -43,6 +43,7 @@ class Generate(SharedOptions, _Generate):
 @dataclass
 class _SampleBulk:
     path: Path
+    amount: int
 
 
 @dataclass
@@ -107,6 +108,8 @@ class Args:
         sample_bulk = subparsers.add_parser(
             'sample-bulk', help="Sample variations of multiple task definitions.")
         sample_bulk.add_argument('path', type=Path)
+        sample_bulk.add_argument('amount', type=int, default=100,
+                                 help="Number of variations to sample.")
 
         gen_bulk = subparsers.add_parser(
             'gen-bulk', help="Generate variations of multiple task definitions.")

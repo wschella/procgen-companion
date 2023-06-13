@@ -95,11 +95,6 @@ def generate(
         yield variation, meta
 
 
-def format_filename(template_path: Path, variation_idx: int, labels: list[str]):
-    label = f"_{'_'.join(labels)}" if labels else ""
-    return f"{template_path.stem}_{variation_idx:05d}{label}.yaml"
-
-
 def iterate_variations_recursive(node: Any) -> Iterator[Tuple[Any, Meta]]:
     handler = handlers.get_node_handler(node)
     return handler.iterate(node, iterate_variations_recursive)
@@ -116,6 +111,13 @@ def count_recursive(node: Any):
 
 
 def explain_count_recursive(node: Any):
+    exp = _explain_count_recursive(node)
+    if exp == "":
+        return "No variations"
+    return exp
+
+
+def _explain_count_recursive(node: Any):
     """
     Generate a string explaining where the number of variations comes from.
     For example output is: 6#ProcList x 5#ProcColor x 4#ProcVector3Scaled,
@@ -124,7 +126,7 @@ def explain_count_recursive(node: Any):
     handler = handlers.get_node_handler(node)
     if issubclass(handler, handlers.StaticNodeHandler):
         children = handler.children(node)
-        explanations = [explain_count_recursive(child) for child in children]
+        explanations = [_explain_count_recursive(child) for child in children]
         return " x ".join(explanation for explanation in explanations if explanation)
     elif issubclass(handler, handlers.ProcGenNodeHandler):
         if issubclass(handler, (handlers.ProcIf, handlers.ProcIfLabels)):

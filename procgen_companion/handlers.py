@@ -599,7 +599,8 @@ class ConditionResolver():
                     # When a !ProcIf refers to another !ProcIf, it might not be filled yet when resolving this condition.
                     value.fill(root)
         except Exception as e:
-            e.add_note(f"Could not find variable '{variable}' in Item '{item_id}'.")
+            # TODO: Make Procgen error
+            print(f"ERROR: Could not find variable '{variable}' in Item '{item_id}'.")
             raise e
 
         return value
