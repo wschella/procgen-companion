@@ -1,4 +1,4 @@
-import types
+from __future__ import annotations
 import itertools
 import collections
 from typing import *
@@ -41,31 +41,6 @@ def custom_list_representer(dumper, data):
         return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True)
     else:
         return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=False)
-
-
-def allstatic(cls):
-    """
-    Class decorator that makes all methods static.
-
-    Source: https://stackoverflow.com/questions/35292547/how-to-decorate-class-or-static-methods
-    """
-    for name, member in vars(cls).items():
-        # Good old function object, just decorate it
-        if isinstance(member, (types.FunctionType, types.BuiltinFunctionType)):
-            setattr(cls, name, staticmethod(member))
-            continue
-
-        # Class methods: do the dark magic
-        if isinstance(member, (classmethod)):
-            inner_func = member.__func__
-            method_type = type(member)
-            decorated = method_type(staticmethod(inner_func))
-            setattr(cls, name, decorated)
-            continue
-
-        # We don't care about anything else
-
-    return cls
 
 
 def pprint(node: Any) -> str:
@@ -124,7 +99,7 @@ class MutablePlaceholder():
         return self.value[key]
 
     @classmethod
-    def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:
+    def represent(cls, dumper: yaml.Dumper, data: MutablePlaceholder) -> Any:
         if data.value is None:
             raise ValueError("MutablePlaceholder has not been filled yet. Programmer error.")
         return dumper.represent_data(data.value)

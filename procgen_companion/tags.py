@@ -15,7 +15,7 @@ class CustomTag(ABC):
 
     @classmethod
     @abstractmethod
-    def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:
+    def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:  # type: ignore
         pass
 
     @abstractmethod
@@ -117,7 +117,7 @@ class CustomMappingTag(CustomTag):
         return cls(**str_mapping)
 
     @classmethod
-    def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:
+    def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:  # type: ignore
         dd = data.__dict__
         fields = (
             list(dd.items()) if (cls.order is None) else  # Unordered
@@ -141,7 +141,7 @@ class CustomSequenceTag(CustomTag, Iterable[Any]):
         return cls(sequence)
 
     @classmethod
-    def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:
+    def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:  # type: ignore
         return dumper.represent_sequence(f"!{cls.tag}", data, flow_style=(cls.flow_style == 'flow'))
 
     @abstractmethod
@@ -168,7 +168,7 @@ class CustomScalarTag(CustomTag):
         return cls(node.value)
 
     @classmethod
-    def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:
+    def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:  # type: ignore
         assert len(data.__dict__) == 1
         value = next(iter(data.__dict__.values()))  # Should only be one value
         return dumper.represent_scalar(f"!{cls.tag}", str(value))
