@@ -68,7 +68,7 @@ def _generate_or_sample(args: Union[c.Generate, c.Sample]):
 
 
 def count_bulk(args: c.CountBulk):
-    for template_path in iterdir(args.path, args.ignore_dirs, args.ignore_hidden):
+    for template_path in iterdir(args.path, args.ignore_dirs, args.descend_hidden):
         try:
             template = pg.read(template_path)
             n_variations = pg.count_recursive(template)
@@ -91,7 +91,7 @@ def sample_bulk(args: c.SampleBulk):
 
     log = open(output_dir_base / "log.csv", "w")
 
-    for template_path in iterdir(args.path, args.ignore_dirs, args.ignore_hidden):
+    for template_path in iterdir(args.path, args.ignore_dirs, args.descend_hidden):
         output_dir = output_dir_base / template_path.stem
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -128,7 +128,7 @@ def sample_bulk(args: c.SampleBulk):
             else:
                 print(f"Unexpected error while processing {template_path}:")
                 csv.writer(log).writerow([template_path, "Unexpected error"])
-                raise e
+                # raise e
 
     log.close()
 
@@ -145,7 +145,9 @@ def consume_variations(iterator, amount, output_dir, prefix, pb_prefix: Optional
     meta_file.close()
 
 
-def iterdir(path: Path, ignore_dirs: List[str], ignore_hidden: bool) -> Iterator[Path]:
+def iterdir(path: Path, ignore_dirs: List[Union[str, Path]], descend_hidden: bool) -> Iterator[Path]:
+    ignore_dirs = [Path(d) for d in ignore_dirs]
+
     if not path.exists():
         raise FileNotFoundError(path)
 
@@ -156,7 +158,10 @@ def iterdir(path: Path, ignore_dirs: List[str], ignore_hidden: bool) -> Iterator
         # Exclude ignored directories
         # https://stackoverflow.com/questions/19859840/excluding-directories-in-os-walk
         if ignore_dirs:
-            _subdirs[:] = [d for d in _subdirs if d not in ignore_dirs]
+            _subdirs[:] = [d for d in _subdirs if Path(d) not in ignore_dirs]
+
+        if not descend_hidden:  # i.e. if ignore_hidden
+            _subdirs[:] = [d for d in _subdirs if not d.startswith(".")]
 
         for template_path in [Path(dir) / filename for filename in files]:
             yield template_path
