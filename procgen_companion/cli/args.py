@@ -14,7 +14,7 @@ class SharedOptions:
 @dataclass
 class SharedBulkOptions:
     ignore_dirs: List[str] = field(default_factory=list)
-    ignore_hidden: bool = True
+    descend_hidden: bool = True
 
 
 @dataclass
@@ -130,7 +130,7 @@ class Args:
         for p in [sample_bulk, gen_bulk, count_bulk]:
             group = p.add_argument_group('bulk options')
             group.add_argument('-i', '--ignore-dirs', nargs='+', default=[])
-            group.add_argument('--ignore-hidden', action=argparse.BooleanOptionalAction)
+            group.add_argument('--descend-hidden', action=argparse.BooleanOptionalAction)
 
         args_raw = vars(parser.parse_args())
         command_name: CommandName = args_raw.pop('command')

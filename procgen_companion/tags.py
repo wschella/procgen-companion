@@ -232,7 +232,7 @@ class Vector3(CustomMappingTag, AnimalAITag, WithId):
         self.z = z
 
         if isinstance(x, list) or isinstance(y, list) or isinstance(z, list):
-            raise errors.BaseProcGenError(
+            raise errors.NodeAnnotatedProcGenError(
                 self, "FaultyType", "Vector3 fields x, y, z can not have lists as values.")
 
 
@@ -368,14 +368,14 @@ class ProcIf(CustomMappingTag, ProcGenTag):
         self.labels = labels
         self.default_label = default_label
 
-        if len(self.cases) != len(self.then):
-            raise errors.BaseProcGenError(
+        if len(self.then) != len(self.cases):
+            raise errors.NodeAnnotatedProcGenError(
                 self, "LengthMismatch",
                 f"!ProcIf `cases` and `then` must have the same length. " +
                 f"Got `cases` with length {len(self.cases)} and `then` with length {len(self.then)}.")
 
-        if self.labels and len(self.labels) != len(self.then):
-            raise errors.BaseProcGenError(
+        if self.labels and len(self.labels) != len(self.cases):
+            raise errors.NodeAnnotatedProcGenError(
                 self, "LengthMismatch",
                 f"!ProcIf `cases` and `labels` must have the same length. " +
                 f"Got `cases` with length {len(self.cases)} and `then` with length {len(self.labels)}.")
@@ -396,6 +396,12 @@ class ProcIfLabels(CustomMappingTag):
         self.cases = cases
         self.labels = labels
         self.default = default
+
+        if self.labels and len(self.labels) != len(self.cases):
+            raise errors.NodeAnnotatedProcGenError(
+                self, "LengthMismatch",
+                f"!ProcIf `cases` and `labels` must have the same length. " +
+                f"Got `cases` with length {len(self.cases)} and `then` with length {len(self.labels)}.")
 
 
 class TemplateMeta():

@@ -21,7 +21,7 @@ class SourceAnnotatedProcGenError(ProcGenError):
         return f"{self.user_label} in {self.template_path}\n" + str(self.error)
 
 
-class BaseProcGenError(ProcGenError):
+class NodeAnnotatedProcGenError(ProcGenError):
     def __init__(self, node: Any, user_label: str, message: str):
         self.node = node
         self.message = message
@@ -35,3 +35,12 @@ class BaseProcGenError(ProcGenError):
             f"{node_str}" + \
             f"-----------------------------"
         return f"{node_str}\nError ({self.user_label}): {self.message}"
+
+
+class BaseProcGenError(ProcGenError):
+    def __init__(self, user_label: str, message: str):
+        self.user_label = user_label
+        self.message = message
+
+    def __str__(self):
+        return f"Error ({self.user_label}): {self.message}"

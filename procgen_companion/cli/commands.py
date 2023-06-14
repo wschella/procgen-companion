@@ -96,8 +96,8 @@ def sample_bulk(args: c.SampleBulk):
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Progress bar prefix
-        tpath_f = truncate_middle(str(template_path), width=32, placeholder="...")
-        pb_prefix = f"{tpath_f} (?)".ljust(40)
+        tpath_f = truncate_middle(str(template_path), width=48, placeholder="...")
+        pb_prefix = f"{tpath_f} (?)".ljust(48 + 8 + len(" ()"))
 
         try:
             template = pg.read(template_path)
@@ -105,7 +105,7 @@ def sample_bulk(args: c.SampleBulk):
             # Add extra info to the progress bar prefix
             nvars = pg.count_recursive(pg.read(template_path))
             nvars_f = truncate_middle(str(nvars), width=8, placeholder="...")
-            pb_prefix = f"{tpath_f} ({nvars_f})".ljust(40)
+            pb_prefix = f"{tpath_f} ({nvars_f})".ljust(48 + 8 + len(" ()"))
 
             iterator = pg.generate('sample', template, args.amount)
             consume_variations(iterator, args.amount, output_dir, "", pb_prefix=pb_prefix)
@@ -145,7 +145,7 @@ def consume_variations(iterator, amount, output_dir, prefix, pb_prefix: Optional
     meta_file.close()
 
 
-def iterdir(path: Path, ignore_dirs: List[Union[str, Path]], descend_hidden: bool) -> Iterator[Path]:
+def iterdir(path: Path, ignore_dirs: Union[List[str], List[Path]], descend_hidden: bool) -> Iterator[Path]:
     ignore_dirs = [Path(d) for d in ignore_dirs]
 
     if not path.exists():

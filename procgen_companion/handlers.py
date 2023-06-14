@@ -480,12 +480,12 @@ class ProcIf(NodeHandler[tags.ProcIf, util.MutablePlaceholder], ProcGenNodeHandl
             # Recast value as given (list or scalar) to avoid confusion.
             values = values if isinstance(node.value, list) else values[0]
             if node.default is None:
-                raise errors.BaseProcGenError(
+                raise errors.NodeAnnotatedProcGenError(
                     node, "MissingCase",
                     f"Could not find a matching case for {node.value} = {values} in `cases` " +
                     f"and there is no default.")
             if node.labels is not None and node.default_label is None:
-                raise errors.BaseProcGenError(
+                raise errors.NodeAnnotatedProcGenError(
                     node, "MissingCase",
                     f"Could not find a matching case for {node.value} = {values} in `cases` " +
                     f"and there is no default label.")
@@ -528,8 +528,10 @@ class ProcIfLabels(NodeHandler[tags.ProcIfLabels, util.MutablePlaceholder], Proc
         # No matches
         if idx == -1:
             if node.default is None:
-                msg = f"Could not find a matching case for {variables} = {values} in {node.cases} and there is no default."
-                raise ValueError(msg)
+                raise errors.NodeAnnotatedProcGenError(
+                    node, "MissingCase",
+                    f"Could not find a matching case for {node.value} = {values} in `cases` " +
+                    f"and there is no default.")
             meta.add_label(node.default)
             return
 
@@ -586,9 +588,10 @@ class ConditionResolver():
         item_id, *path_ = variable.split(".")
         item = ConditionResolver.__find_item(item_id, root)
         if item is None:
-            raise ValueError(dedent(f"""
-            Could not find an Item with id '{item_id}', but it is need for variable '{variable}'.
-            Did you forget to specify it?"""))
+            raise errors.BaseProcGenError(
+                "IDNotFound",
+                f"Could not find an Item with id '{item_id}', but it is need for a variable ({variable}).\n" +
+                f"Did you forget to specify the id in the corresponding Item?")
 
         # Deal with list indices
         path = [int(key) if key.isdigit() else key for key in path_]
@@ -603,9 +606,10 @@ class ConditionResolver():
                     # When a !ProcIf refers to another !ProcIf, it might not be filled yet when resolving this condition.
                     value.fill(root)
         except Exception as e:
-            # TODO: Make Procgen error
-            print(f"ERROR: Could not find variable '{variable}' in Item '{item_id}'.")
-            raise e
+            raise errors.BaseProcGenError(
+                "NonExistentVariable",
+                f"Could not find variable '{variable}' in Item '{item_id}', " +
+                f"but it is referred to in some place (e.g. a !ProcIf).")
 
         return value
 
