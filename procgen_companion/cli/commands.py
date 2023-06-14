@@ -89,23 +89,48 @@ def sample_bulk(args: c.SampleBulk):
     output_dir_base = args.output or Path(f"./variations_{args.path.stem}/")
     output_dir_base.mkdir(parents=True, exist_ok=True)
 
+    log = open(output_dir_base / "log.csv", "w")
+
     for template_path in iterdir(args.path, args.ignore_dirs, args.ignore_hidden):
         output_dir = output_dir_base / template_path.stem
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        # Progress bar prefix
+        tpath_f = truncate_middle(str(template_path), width=32, placeholder="...")
+        pb_prefix = f"{tpath_f} (?)".ljust(40)
+
         try:
             template = pg.read(template_path)
 
+            # Add extra info to the progress bar prefix
             nvars = pg.count_recursive(pg.read(template_path))
             nvars_f = truncate_middle(str(nvars), width=8, placeholder="...")
-            tpath_f = truncate_middle(str(template_path), width=32, placeholder="...")
             pb_prefix = f"{tpath_f} ({nvars_f})".ljust(40)
 
             iterator = pg.generate('sample', template, args.amount)
             consume_variations(iterator, args.amount, output_dir, "", pb_prefix=pb_prefix)
+
+            csv.writer(log).writerow([
+                template_path,
+                f"Success. Sampled {args.amount} from {nvars} possible variations."])
+
         except Exception as e:
-            print(f"Error while processing {template_path}:")
-            raise e
+            # Write error to file for easier debugging
+            with open(output_dir / "error.txt", "w") as f:
+                f.write(str(e))
+
+            # Continue for "expected errors"
+            if isinstance(e, errors.ProcGenError):
+                print(f"{pb_prefix}: Error ({e.user_label})")
+                csv.writer(log).writerow([template_path, f"Error ({e.user_label})"])
+
+            # Break for unexpected errors
+            else:
+                print(f"Unexpected error while processing {template_path}:")
+                csv.writer(log).writerow([template_path, "Unexpected error"])
+                raise e
+
+    log.close()
 
 
 def consume_variations(iterator, amount, output_dir, prefix, pb_prefix: Optional[str] = None):

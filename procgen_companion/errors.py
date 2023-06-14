@@ -6,7 +6,7 @@ import textwrap
 import yaml
 
 
-class ProcGenError(ABC, BaseException):
+class ProcGenError(ABC, Exception):
     user_label: str
 
 
