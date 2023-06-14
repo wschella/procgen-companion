@@ -27,7 +27,7 @@ If you use this software, please cite it as below.
 
 A procgen template is structured like an AnimalAI `.yaml` file, but one can make use of certain special tags like `!ProcList`, `!ProcColor`, `!ProcIf` that define the allowed variations of a field's value.
 
-Run `procgen path/to/template.yaml`...
+Run `procgen gen path/to/template.yaml`...
 
 ... and the procgen-companion tool will generate all possible combinations of these fields, and output a `.yaml` file for each variation in `path/to/template_variations/`, which are directly usable by the AnimalAI environment.
 
@@ -64,7 +64,22 @@ The template used will also be copied `example_variations/template.yaml`.
 Every valid AnimalAI .yaml file is also a valid procgen-companion template.
 All the fields you don't want to procedurally generate will be ignored and copied.
 
-It is also possible to take a random sample instead of generating all possible combinations. Use `procgen --sample <amount> path/to/template.yaml` instead then, with `<amount>` being an integer representing the number of samples you want.
+It is also possible to take a random sample instead of generating all possible combinations, or to generate in bulk. See `procgen --help` or ``procgen [subcommand] --help` for more info.
+
+```shell
+$ procgen --help
+usage: procgen-companion [-h] {sample,gen,sample-bulk,gen-bulk,count-bulk} ...
+
+Procedurally generate variations of an AnimalAI based on a task template.
+
+positional arguments:
+  {sample,gen,sample-bulk,gen-bulk,count-bulk}
+    sample              Sample variations of a task definition.
+    gen                 Generate variations of a task definition.
+    sample-bulk         Sample variations of multiple task definitions.
+    gen-bulk            Generate variations of multiple task definitions.
+    count-bulk          Count the number of variations of multiple task definitions.
+```
 
 ## Tags
 

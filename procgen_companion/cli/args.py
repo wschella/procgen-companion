@@ -94,7 +94,7 @@ class Args:
             description="Procedurally generate variations of an AnimalAI based on a task template."
         )
 
-        subparsers = parser.add_subparsers(dest='command')
+        subparsers = parser.add_subparsers(dest='command', required=True)
 
         sample = subparsers.add_parser('sample', help="Sample variations of a task definition.")
         sample.add_argument('path', type=Path)
