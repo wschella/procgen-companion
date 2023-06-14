@@ -10,10 +10,19 @@ import csv
 
 import procgen_companion.core as pg
 import procgen_companion.tags as tags
+import procgen_companion.errors as errors
 import procgen_companion.cli.args as c
 
 
 def generate_or_sample(args: Union[c.Generate, c.Sample]):
+    try:
+        _generate_or_sample(args)
+    except errors.ProcGenError as e:
+        print(e)
+        sys.exit(1)
+
+
+def _generate_or_sample(args: Union[c.Generate, c.Sample]):
 
     if not args.path.exists():
         raise FileNotFoundError(args.path)

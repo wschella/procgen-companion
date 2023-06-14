@@ -4,6 +4,8 @@ from typing import *
 
 import yaml
 
+import procgen_companion.errors as errors
+
 
 class CustomTag(ABC):
     tag: str
@@ -122,6 +124,7 @@ class CustomMappingTag(CustomTag):
         fields = (
             list(dd.items()) if (cls.order is None) else  # Unordered
             [(k, dd[k]) for k in cls.order if k in dd])  # Ordered
+        fields = [(k, v) for k, v in fields if v != None]  # Filter out None values
         return dumper.represent_mapping(f"!{cls.tag}", fields, flow_style=(cls.flow_style == 'flow'))
 
     def __getitem__(self, item: Any) -> Any:
@@ -224,13 +227,13 @@ class Vector3(CustomMappingTag, AnimalAITag, WithId):
     z: Any
 
     def __init__(self, x: Any, y: Any, z: Any) -> None:
-        if isinstance(x, list) or isinstance(y, list) or isinstance(z, list):
-            raise ValueError(
-                f"Vector3 fields x, y, z can not be lists. Got: x={x}, y={y}, z={z}.")
-
         self.x = x
         self.y = y
         self.z = z
+
+        if isinstance(x, list) or isinstance(y, list) or isinstance(z, list):
+            raise errors.BaseProcGenError(
+                self, "FaultyType", "Vector3 fields x, y, z can not have lists as values.")
 
 
 class RGB(CustomMappingTag, AnimalAITag, WithId):
@@ -365,6 +368,18 @@ class ProcIf(CustomMappingTag, ProcGenTag):
         self.labels = labels
         self.default_label = default_label
 
+        if len(self.cases) != len(self.then):
+            raise errors.BaseProcGenError(
+                self, "LengthMismatch",
+                f"!ProcIf `cases` and `then` must have the same length. " +
+                f"Got `cases` with length {len(self.cases)} and `then` with length {len(self.then)}.")
+
+        if self.labels and len(self.labels) != len(self.then):
+            raise errors.BaseProcGenError(
+                self, "LengthMismatch",
+                f"!ProcIf `cases` and `labels` must have the same length. " +
+                f"Got `cases` with length {len(self.cases)} and `then` with length {len(self.labels)}.")
+
 # ------------ Exceptions ------------
 
 
@@ -378,8 +393,8 @@ class ProcIfLabels(CustomMappingTag):
 
     def __init__(self, value: Union[str, list[str]], cases: list[Any], labels: list[str], default: Optional[str] = None):
         self.value = value
-        self.labels = labels
         self.cases = cases
+        self.labels = labels
         self.default = default
 
 

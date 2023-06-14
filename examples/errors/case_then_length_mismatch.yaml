@@ -1,0 +1,19 @@
+!ArenaConfig
+arenas:
+  0: !Arena
+    pass_mark: !ProcIf
+      value: [agent.positions.0.z]
+      cases: [1, 10, 20, 30]
+      then: [0, 1, 2] # Last case has no corresponding value
+    t: 250
+    items:
+      - !Item
+        name: Agent
+        id: agent
+        positions:
+          - !ProcList [
+              !Vector3 { x: 20, y: 1, z: 1 },
+              !Vector3 { x: 20, y: 1, z: 10 },
+              !Vector3 { x: 20, y: 1, z: 20 },
+              !Vector3 { x: 20, y: 1, z: 30 },
+            ]

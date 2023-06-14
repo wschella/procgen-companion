@@ -6,10 +6,10 @@ import random
 import functools
 import operator
 import math
-import itertools
 
 import procgen_companion.tags as tags
 import procgen_companion.util as util
+import procgen_companion.errors as errors
 from procgen_companion.meta import Meta
 
 NodeType = TypeVar("NodeType")
@@ -477,14 +477,18 @@ class ProcIf(NodeHandler[tags.ProcIf, util.MutablePlaceholder], ProcGenNodeHandl
 
         idx, values = ConditionResolver.resolve(variables, node.cases, root)
         if idx == -1:
-            # Format error message. Reformat value as given (list or scalar) to avoid confusion.
+            # Recast value as given (list or scalar) to avoid confusion.
             values = values if isinstance(node.value, list) else values[0]
-            msg_pre = f"Could not find a matching case for {node.value} = {values} in {node.cases}"
-            msg_post = util.pprint(node)
             if node.default is None:
-                raise ValueError(f"{msg_pre} and there is no default\n{msg_post}")
-            if node.default_label is None and node.labels is not None:
-                raise ValueError(f"{msg_pre} and there is no default label.\n{msg_post}")
+                raise errors.BaseProcGenError(
+                    node, "MissingCase",
+                    f"Could not find a matching case for {node.value} = {values} in `cases` " +
+                    f"and there is no default.")
+            if node.labels is not None and node.default_label is None:
+                raise errors.BaseProcGenError(
+                    node, "MissingCase",
+                    f"Could not find a matching case for {node.value} = {values} in `cases` " +
+                    f"and there is no default label.")
 
             # Happy path with defaults
             return node.default, node.default_label
