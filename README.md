@@ -8,6 +8,10 @@ Specify task templates and procedurally generate all possible variations.
 
 `pip install git+https://github.com/wschella/procgen-companion.git`
 
+or if you already installed it, maybe safer to like this:
+
+`pip install --upgrade --force-reinstall git+https://github.com/wschella/procgen-companion.git`
+
 ## Citation
 
 If you use this software, please cite it as below.
