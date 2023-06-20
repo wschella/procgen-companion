@@ -1,6 +1,5 @@
 import os
 import sys
-import textwrap
 from typing import *
 from pathlib import Path
 
@@ -28,7 +27,8 @@ def _generate_or_sample(args: Union[c.Generate, c.Sample]):
         raise FileNotFoundError(args.path)
 
     if not args.path.is_file():
-        raise ValueError("Path must be a file. Do you mean to use `procgen-bulk`?")
+        raise ValueError("Path argument must point to a file but does not." +
+                         "Did you pass a directory and mean to use a bulk command?")
 
     template: tags.ArenaConfig = pg.read(args.path)
 
@@ -68,7 +68,7 @@ def _generate_or_sample(args: Union[c.Generate, c.Sample]):
 
 
 def count_bulk(args: c.CountBulk):
-    for template_path in iterdir(args.path, args.ignore_dirs, args.descend_hidden):
+    for template_path in iterdir(args.path, args.ignore_dirs, args.ignore_hidden):
         try:
             template = pg.read(template_path)
             n_variations = pg.count_recursive(template)
@@ -91,7 +91,7 @@ def sample_bulk(args: c.SampleBulk):
 
     log = open(output_dir_base / "log.csv", "w")
 
-    for template_path in iterdir(args.path, args.ignore_dirs, args.descend_hidden):
+    for template_path in iterdir(args.path, args.ignore_dirs, args.ignore_hidden):
         output_dir = output_dir_base / template_path.stem
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -145,7 +145,7 @@ def consume_variations(iterator, amount, output_dir, prefix, pb_prefix: Optional
     meta_file.close()
 
 
-def iterdir(path: Path, ignore_dirs: Union[List[str], List[Path]], descend_hidden: bool) -> Iterator[Path]:
+def iterdir(path: Path, ignore_dirs: Union[List[str], List[Path]], ignore_hidden: bool) -> Iterator[Path]:
     ignore_dirs = [Path(d) for d in ignore_dirs]
 
     if not path.exists():
@@ -160,7 +160,8 @@ def iterdir(path: Path, ignore_dirs: Union[List[str], List[Path]], descend_hidde
         if ignore_dirs:
             _subdirs[:] = [d for d in _subdirs if Path(d) not in ignore_dirs]
 
-        if not descend_hidden:  # i.e. if ignore_hidden
+        if ignore_hidden:
+            files[:] = [f for f in files if not f.startswith(".")]
             _subdirs[:] = [d for d in _subdirs if not d.startswith(".")]
 
         for template_path in [Path(dir) / filename for filename in files]:
