@@ -13,7 +13,7 @@ class SharedOptions:
 
 @dataclass
 class SharedBulkOptions:
-    ignore_dirs: List[str] = field(default_factory=list)
+    ignore_dirs: List[Path] = field(default_factory=list)
     ignore_hidden: bool = True
     flatten: bool = False
 
@@ -162,6 +162,7 @@ class Args:
                 "--ignore-dirs",
                 nargs="+",
                 default=[],
+                type=Path,
                 help="Directories to ignore.",
             )
             group.add_argument(

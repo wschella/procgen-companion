@@ -99,7 +99,12 @@ def sample_bulk(args: c.SampleBulk):
 
     log = open(output_dir_base / "log.csv", "w")
 
-    for template_path in iterdir(args.path, args.ignore_dirs, args.ignore_hidden):
+    for template_path in iterdir(
+        args.path,
+        args.ignore_dirs
+        + [output_dir_base],  # Also ignore the output directory to avoid recursion
+        args.ignore_hidden,
+    ):
         if args.flatten:
             output_dir = output_dir_base / template_path.stem
         else:
