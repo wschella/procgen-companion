@@ -186,7 +186,8 @@ def iterdir(
             _subdirs[:] = [d for d in _subdirs if not d.startswith(".")]
 
         for template_path in [Path(dir) / filename for filename in files]:
-            yield template_path
+            if template_path.suffix.lower() in [".yaml", ".yml"]:
+                yield template_path
 
 
 def format_filename(prefix: str, variation_idx: int, labels: list[str]):
