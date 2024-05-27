@@ -1,7 +1,7 @@
 from typing import Optional
 
 
-class Meta():
+class Meta:
     # List of labels that should be added to the filename
     labels: list[str]
 

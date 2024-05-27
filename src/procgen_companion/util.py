@@ -25,11 +25,11 @@ def product(*iterables, **kwargs):
     if len(iterables) == 0:
         yield ()
     else:
-        iterables = iterables * kwargs.get('repeat', 1)
+        iterables = iterables * kwargs.get("repeat", 1)
         it = iterables[0]
         for item in it() if callable(it) else iter(it):
             for items in product(*iterables[1:]):
-                yield (item, ) + items
+                yield (item,) + items
 
 
 def custom_list_representer(dumper, data):
@@ -38,16 +38,20 @@ def custom_list_representer(dumper, data):
     if all items are scalars or !R ranges.
     """
     if all(isinstance(item, (str, int, float, tags.Range)) for item in data):
-        return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True)
+        return dumper.represent_sequence("tag:yaml.org,2002:seq", data, flow_style=True)
     else:
-        return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=False)
+        return dumper.represent_sequence(
+            "tag:yaml.org,2002:seq", data, flow_style=False
+        )
 
 
 def pprint(node: Any) -> str:
     """
     Pretty print a node.
     """
-    return yaml.dump(node, default_flow_style=False, sort_keys=False, Dumper=yaml.SafeDumper)
+    return yaml.dump(
+        node, default_flow_style=False, sort_keys=False, Dumper=yaml.SafeDumper
+    )
 
 
 def consume(iterator, n=None):
@@ -69,11 +73,21 @@ def consume(iterator, n=None):
 # The first three colors in the list are red, green, and blue, respectively.
 # The next three colors are yellow, magenta, and cyan, which are created by mixing the primary colors.
 # The last four colors are various shades of gray.
-COLORS = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255),
-          (0, 255, 255), (192, 192, 192), (128, 128, 128), (128, 0, 0), (0, 128, 0)]
+COLORS = [
+    (255, 0, 0),
+    (0, 255, 0),
+    (0, 0, 255),
+    (255, 255, 0),
+    (255, 0, 255),
+    (0, 255, 255),
+    (192, 192, 192),
+    (128, 128, 128),
+    (128, 0, 0),
+    (0, 128, 0),
+]
 
 
-class MutablePlaceholder():
+class MutablePlaceholder:
     # This could all be in !ProcIf, but we don't want to overload the tags.ProcIf class.
     # Therefore, we replace it during generation with this one, which deals with
     # resolving the conditionals during yaml.dump.
@@ -95,11 +109,15 @@ class MutablePlaceholder():
 
     def __getitem__(self, key):
         if self.value is None:
-            raise ValueError("MutablePlaceholder has not been filled yet. Programmer error.")
+            raise ValueError(
+                "MutablePlaceholder has not been filled yet. Programmer error."
+            )
         return self.value[key]
 
     @classmethod
-    def represent(cls, dumper: yaml.Dumper, data: MutablePlaceholder) -> Any:
+    def represent(cls, dumper: yaml.SafeDumper, data: MutablePlaceholder) -> Any:
         if data.value is None:
-            raise ValueError("MutablePlaceholder has not been filled yet. Programmer error.")
+            raise ValueError(
+                "MutablePlaceholder has not been filled yet. Programmer error."
+            )
         return dumper.represent_data(data.value)

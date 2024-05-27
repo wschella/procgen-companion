@@ -1,6 +1,17 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, List, Type, Optional, Union, Iterator, TypedDict, Dict, Self, Iterable
+from typing import (
+    Any,
+    List,
+    Type,
+    Optional,
+    Union,
+    Iterator,
+    TypedDict,
+    Dict,
+    Self,
+    Iterable,
+)
 
 import yaml
 
@@ -54,51 +65,51 @@ def GET_SPECIAL_TAGS() -> List[Type[CustomTag]]:
     ]
 
 
-class AnimalAITag():
+class AnimalAITag:
     """
     Simple marker class for AnimalAI tags.
     """
 
 
-class ProcGenTag():
+class ProcGenTag:
     """
     Simple marker class for ProcGen tags.
     """
+
     pass
 
 
-class WithId():
+class WithId:
     id: Optional[str]  # Might not be initialised to None
 
     def get_id(self) -> Optional[str]:
-        if hasattr(self, 'id'):
+        if hasattr(self, "id"):
             return self.id
         return None
 
 
-class WithTemplateMeta():
+class WithTemplateMeta:
     # This is only used for ArenaConfig, but we do this in a separate class
     # such that proc_meta doesn't show in __dict__.
     proc_meta: Optional[Dict[str, Any]]  # Might not be initialised to None
 
     def get_proc_meta(self) -> Optional[TemplateMeta]:
-        if hasattr(self, 'proc_meta') and self.proc_meta is not None:
+        if hasattr(self, "proc_meta") and self.proc_meta is not None:
             return TemplateMeta(**self.proc_meta)
         return None
 
     def del_proc_meta(self) -> None:
-        if hasattr(self, 'proc_meta'):
+        if hasattr(self, "proc_meta"):
             del self.proc_meta
 
 
 class CustomMappingTag(CustomTag):
-
     # Note: All AnimalAI mapping specify an order of their fields for dumping.
     # This allows us to:
     # - Specify a fixed, sane, order for all the fields (e.g. x,y,z for Vector3)
     # - Filter out meta-fields like 'id' that are not part of the AnimalAI spec.
     order: Optional[list[str]] = None
-    flow_style = 'block'
+    flow_style = "block"
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -111,7 +122,7 @@ class CustomMappingTag(CustomTag):
         str_mapping = {str(k): v for k, v in mapping.items()}
 
         # Validate
-        annotations = cls.__dict__['__annotations__']
+        annotations = cls.__dict__["__annotations__"]
         for k in str_mapping.keys():
             if k not in annotations:
                 raise ValueError(f"Unexpected key '{k}' in tag '{cls.tag}'")
@@ -122,17 +133,22 @@ class CustomMappingTag(CustomTag):
     def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:  # type: ignore
         dd = data.__dict__
         fields = (
-            list(dd.items()) if (cls.order is None) else  # Unordered
-            [(k, dd[k]) for k in cls.order if k in dd])  # Ordered
+            list(dd.items())
+            if (cls.order is None)
+            # Unordered
+            else [(k, dd[k]) for k in cls.order if k in dd]
+        )  # Ordered
         fields = [(k, v) for k, v in fields if v is not None]  # Filter out None values
-        return dumper.represent_mapping(f"!{cls.tag}", fields, flow_style=(cls.flow_style == 'flow'))
+        return dumper.represent_mapping(
+            f"!{cls.tag}", fields, flow_style=(cls.flow_style == "flow")
+        )
 
     def __getitem__(self, item: Any) -> Any:
         return self.__dict__[item]
 
 
 class CustomSequenceTag(CustomTag, Iterable[Any]):
-    flow_style = 'block'
+    flow_style = "block"
 
     @abstractmethod
     def __init__(self, value: Any) -> None:
@@ -145,7 +161,9 @@ class CustomSequenceTag(CustomTag, Iterable[Any]):
 
     @classmethod
     def represent(cls, dumper: yaml.Dumper, data: Self) -> Any:  # type: ignore
-        return dumper.represent_sequence(f"!{cls.tag}", data, flow_style=(cls.flow_style == 'flow'))
+        return dumper.represent_sequence(
+            f"!{cls.tag}", data, flow_style=(cls.flow_style == "flow")
+        )
 
     @abstractmethod
     def __setitem__(self, key: int, value: Any) -> None:
@@ -161,7 +179,6 @@ class CustomSequenceTag(CustomTag, Iterable[Any]):
 
 
 class CustomScalarTag(CustomTag):
-
     @abstractmethod
     def __init__(self, value: Any) -> None:
         pass
@@ -179,13 +196,14 @@ class CustomScalarTag(CustomTag):
     def __getitem__(self, item: Any) -> Any:
         raise ValueError(f"Scalar tag '{self.tag} {self}' does not being indexed.")
 
+
 # ------------ AnimalAI Tags ------------
 
 
 class ArenaConfig(CustomMappingTag, AnimalAITag, WithId, WithTemplateMeta):
     # Optional meta information that will not be printed
     tag: str = "ArenaConfig"
-    order: list[str] = ['arenas']
+    order: list[str] = ["arenas"]
     proc_meta: Optional[dict[str, Any]]
     id: Optional[str]
 
@@ -195,7 +213,7 @@ class ArenaConfig(CustomMappingTag, AnimalAITag, WithId, WithTemplateMeta):
 
 class Arena(CustomMappingTag, AnimalAITag, WithId):
     tag: str = "Arena"
-    order = ['pass_mark', 't', 'items']
+    order = ["pass_mark", "t", "items"]
     id: Optional[str]
 
     pass_mark: Any
@@ -205,7 +223,7 @@ class Arena(CustomMappingTag, AnimalAITag, WithId):
 
 class Item(CustomMappingTag, AnimalAITag, WithId):
     tag: str = "Item"
-    order = ['name', 'positions', 'rotations', 'colors', 'sizes']
+    order = ["name", "positions", "rotations", "colors", "sizes"]
     id: Optional[str]
 
     name: str
@@ -218,8 +236,8 @@ class Item(CustomMappingTag, AnimalAITag, WithId):
 
 class Vector3(CustomMappingTag, AnimalAITag, WithId):
     tag: str = "Vector3"
-    flow_style: str = 'flow'
-    order = ['x', 'y', 'z']
+    flow_style: str = "flow"
+    order = ["x", "y", "z"]
     id: Optional[str]
 
     x: Any
@@ -233,18 +251,22 @@ class Vector3(CustomMappingTag, AnimalAITag, WithId):
 
         if isinstance(x, list) or isinstance(y, list) or isinstance(z, list):
             raise errors.NodeAnnotatedProcGenError(
-                self, "FaultyType", "Vector3 fields x, y, z can not have lists as values.")
+                self,
+                "FaultyType",
+                "Vector3 fields x, y, z can not have lists as values.",
+            )
 
 
 class RGB(CustomMappingTag, AnimalAITag, WithId):
     tag: str = "RGB"
-    flow_style: str = 'flow'
-    order = ['r', 'g', 'b']
+    flow_style: str = "flow"
+    order = ["r", "g", "b"]
     id: Optional[str]
 
     r: Any
     g: Any
     b: Any
+
 
 # ------------ ProcGen tags ------------
 
@@ -288,9 +310,9 @@ class ProcListLabelled(CustomSequenceTag, ProcGenTag):
 def new_labelled_option(option) -> LabelledOption:
     msg = f"!ProcListLabelled items must be a mapping of (value, label) got {option}"
     assert isinstance(option, dict), msg
-    assert 'label' in option, msg
-    assert 'value' in option, msg
-    return LabelledOption(label=option['label'], value=option['value'])
+    assert "label" in option, msg
+    assert "value" in option, msg
+    return LabelledOption(label=option["label"], value=option["value"])
 
 
 class LabelledOption(TypedDict):
@@ -315,7 +337,12 @@ class ProcVector3Scaled(CustomMappingTag, ProcGenTag):
     scales: list[float]
     labels: Optional[list[str]]
 
-    def __init__(self, scales: list, base: Optional[Vector3] = None, labels: Optional[list[str]] = None):
+    def __init__(
+        self,
+        scales: list,
+        base: Optional[Vector3] = None,
+        labels: Optional[list[str]] = None,
+    ):
         self.scales = [float(x) for x in scales]
         self.base = base
         self.labels = labels
@@ -354,13 +381,14 @@ class ProcIf(CustomMappingTag, ProcGenTag):
     default_label: Optional[str]
 
     def __init__(
-            self,
-            value: Union[str, list[str]],
-            cases: List[Any],
-            then: List[Any],
-            default: Optional[Any] = None,
-            labels: Optional[list[str]] = None,
-            default_label: Optional[str] = None):
+        self,
+        value: Union[str, list[str]],
+        cases: List[Any],
+        then: List[Any],
+        default: Optional[Any] = None,
+        labels: Optional[list[str]] = None,
+        default_label: Optional[str] = None,
+    ):
         self.value = value
         self.cases = cases
         self.then = then
@@ -370,15 +398,20 @@ class ProcIf(CustomMappingTag, ProcGenTag):
 
         if len(self.then) != len(self.cases):
             raise errors.NodeAnnotatedProcGenError(
-                self, "LengthMismatch",
-                f"!ProcIf `cases` and `then` must have the same length. " +
-                f"Got `cases` with length {len(self.cases)} and `then` with length {len(self.then)}.")
+                self,
+                "LengthMismatch",
+                f"!ProcIf `cases` and `then` must have the same length. "
+                + f"Got `cases` with length {len(self.cases)} and `then` with length {len(self.then)}.",
+            )
 
         if self.labels and len(self.labels) != len(self.cases):
             raise errors.NodeAnnotatedProcGenError(
-                self, "LengthMismatch",
-                f"!ProcIf `cases` and `labels` must have the same length. " +
-                f"Got `cases` with length {len(self.cases)} and `then` with length {len(self.labels)}.")
+                self,
+                "LengthMismatch",
+                f"!ProcIf `cases` and `labels` must have the same length. "
+                + f"Got `cases` with length {len(self.cases)} and `then` with length {len(self.labels)}.",
+            )
+
 
 # ------------ Exceptions ------------
 
@@ -391,7 +424,13 @@ class ProcIfLabels(CustomMappingTag):
     labels: list[str]
     default: Optional[str]
 
-    def __init__(self, value: Union[str, list[str]], cases: list[Any], labels: list[str], default: Optional[str] = None):
+    def __init__(
+        self,
+        value: Union[str, list[str]],
+        cases: list[Any],
+        labels: list[str],
+        default: Optional[str] = None,
+    ):
         self.value = value
         self.cases = cases
         self.labels = labels
@@ -399,15 +438,18 @@ class ProcIfLabels(CustomMappingTag):
 
         if self.labels and len(self.labels) != len(self.cases):
             raise errors.NodeAnnotatedProcGenError(
-                self, "LengthMismatch",
-                f"!ProcIf `cases` and `labels` must have the same length. " +
-                f"Got `cases` with length {len(self.cases)} and `then` with length {len(self.labels)}.")
+                self,
+                "LengthMismatch",
+                f"!ProcIf `cases` and `labels` must have the same length. "
+                + f"Got `cases` with length {len(self.cases)} and `then` with length {len(self.labels)}.",
+            )
 
 
-class TemplateMeta():
+class TemplateMeta:
     """
     Not a tag for (weird?) verbosity reasons.
     """
+
     proc_labels: list[ProcIfLabels]
 
     def __init__(self, proc_labels: Optional[list[ProcIfLabels]] = None):
@@ -418,14 +460,12 @@ class TemplateMeta():
         return TemplateMeta(proc_labels=[])
 
     def to_dict(self) -> dict:
-        return {
-            'proc_labels': self.proc_labels
-        }
+        return {"proc_labels": self.proc_labels}
 
 
 class Range(CustomSequenceTag):
     tag: str = "R"
-    flow_style: str = 'flow'
+    flow_style: str = "flow"
 
     min: float
     max: float
@@ -434,9 +474,13 @@ class Range(CustomSequenceTag):
         self.min = value[0]
         self.max = value[1]
         if len(value) != 2:
-            raise ValueError(f"Range !R must have exactly 2 elements, got {len(value)}.")
+            raise ValueError(
+                f"Range !R must have exactly 2 elements, got {len(value)}."
+            )
         if self.min > self.max:
-            raise ValueError(f"Range !R minimum {self.min} is greater than maximum {self.max}.")
+            raise ValueError(
+                f"Range !R minimum {self.min} is greater than maximum {self.max}."
+            )
 
     def __setitem__(self, key: int, value: Any) -> None:
         if key == 0:

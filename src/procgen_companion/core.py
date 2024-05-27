@@ -12,14 +12,17 @@ from procgen_companion.meta import Meta
 
 def init(seed: int):
     # Add constructors and representers for the custom YAML tags
-    for tag in tags.GET_ANIMAL_AI_TAGS() + tags.GET_PROC_GEN_TAGS() + tags.GET_SPECIAL_TAGS():
+    for tag in (
+        tags.GET_ANIMAL_AI_TAGS() + tags.GET_PROC_GEN_TAGS() + tags.GET_SPECIAL_TAGS()
+    ):
         tag_name: str = f"!{tag.tag}"  # type: ignore
         yaml.SafeLoader.add_constructor(tag_name, tag.construct)
         yaml.SafeDumper.add_representer(tag, tag.represent)  # type: ignore
 
     # Add custom representer for MutablePlaceholder
     yaml.SafeDumper.add_representer(
-        util.MutablePlaceholder, util.MutablePlaceholder.represent)  # type: ignore
+        util.MutablePlaceholder, util.MutablePlaceholder.represent
+    )
 
     # Add custom list representer for collapsing lists of scalars
     yaml.SafeDumper.add_representer(list, util.custom_list_representer)
@@ -33,7 +36,7 @@ def read(path: Path) -> tags.ArenaConfig:
 
 
 def generate(
-    mode: Literal['sample', 'exhaustive'],
+    mode: Literal["sample", "exhaustive"],
     template: tags.ArenaConfig,
     amount: int,
 ):
@@ -57,17 +60,16 @@ def generate(
     template_meta = template.get_proc_meta() or tags.TemplateMeta.default()
     template.del_proc_meta()  # We don't want to save this in the output
 
-    if mode == 'sample':
+    if mode == "sample":
         variations = (sample_recursive(template) for _ in range(amount))
-    elif mode == 'exhaustive':
+    elif mode == "exhaustive":
         full_iterator = iterate_variations_recursive(template)
         variations = (next(full_iterator) for _ in range(amount))
     else:
         raise ValueError(f"Programmer Error: Unknown mode `{mode}`")
 
     # Generate all requested variations
-
-    for (variation, meta) in variations:
+    for variation, meta in variations:
         # We need a second pass to fix !ProcIf's and !ProcIfLabels, since they
         # need to access the final variations.
         # We can't use yaml.dump's implicit pass, as id's are already removed from tags then.
@@ -86,11 +88,14 @@ def generate(
 
             meta.add_label(label)
             return False  # Stop walking this branch.
+
         walk_tree(variation, fill_placeholder)
 
         # Fill in !ProcIfLabels's
-        _ = [handlers.ProcIfLabels.resolve(pil, variation, meta)
-             for pil in template_meta.proc_labels]
+        _ = [
+            handlers.ProcIfLabels.resolve(pil, variation, meta)
+            for pil in template_meta.proc_labels
+        ]
 
         yield variation, meta
 

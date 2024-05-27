@@ -11,7 +11,6 @@ class ProcGenError(ABC, Exception):
 
 
 class SourceAnnotatedProcGenError(ProcGenError):
-
     def __init__(self, error: ProcGenError, template_path: Path):
         self.error = error
         self.template_path = template_path
@@ -28,12 +27,15 @@ class NodeAnnotatedProcGenError(ProcGenError):
         self.user_label = user_label
 
     def __str__(self):
-        node_str = yaml.dump(self.node, None, default_flow_style=False, Dumper=yaml.SafeDumper)
+        node_str = yaml.dump(
+            self.node, None, default_flow_style=False, Dumper=yaml.SafeDumper
+        )
         node_str = textwrap.indent(node_str, "  ")
-        node_str = \
-            f"-----------------------------\n" + \
-            f"{node_str}" + \
-            f"-----------------------------"
+        node_str = (
+            f"-----------------------------\n"
+            + f"{node_str}"
+            + f"-----------------------------"
+        )
         return f"{node_str}\nError ({self.user_label}): {self.message}"
 
 
