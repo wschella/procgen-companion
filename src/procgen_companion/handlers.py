@@ -729,9 +729,9 @@ class ConditionResolver:
 
     @staticmethod
     def __matches(v_var: Any, v_case: Any) -> bool:
-        if isinstance(v_case, tags.Range):
+        if isinstance(v_case, tags.Range) and isinstance(v_var, (int, float)):
             return v_case.min <= v_var <= v_case.max
-        if isinstance(v_case, (int, float)):
+        if isinstance(v_case, (int, float)) and isinstance(v_var, (int, float)):
             return math.isclose(v_var, v_case)
         return v_var == v_case
 
