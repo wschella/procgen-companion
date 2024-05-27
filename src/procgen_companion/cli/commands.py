@@ -54,7 +54,7 @@ def _generate_or_sample(args: Union[c.Generate, c.Sample]):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Copy the template to the output directory
-    if not args.prevent_template_copy:
+    if args.copy_template:
         yaml.dump(
             template,
             open(output_dir / "template.yaml", "w"),
@@ -100,7 +100,11 @@ def sample_bulk(args: c.SampleBulk):
     log = open(output_dir_base / "log.csv", "w")
 
     for template_path in iterdir(args.path, args.ignore_dirs, args.ignore_hidden):
-        output_dir = output_dir_base / template_path.stem
+        if args.flatten:
+            output_dir = output_dir_base / template_path.stem
+        else:
+            template_path_ = template_path.relative_to(args.path).with_suffix("")
+            output_dir = output_dir_base / template_path_
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Progress bar prefix
@@ -110,11 +114,21 @@ def sample_bulk(args: c.SampleBulk):
         try:
             template = pg.read(template_path)
 
+            # Copy the template to the output directory
+            if args.copy_template:
+                yaml.dump(
+                    template,
+                    open(output_dir / "template.yaml", "w"),
+                    default_flow_style=False,
+                    Dumper=yaml.SafeDumper,
+                )
+
             # Add extra info to the progress bar prefix
             nvars = pg.count_recursive(pg.read(template_path))
             nvars_f = truncate_middle(str(nvars), width=8, placeholder="...")
             pb_prefix = f"{tpath_f} ({nvars_f})".ljust(48 + 8 + len(" ()"))
 
+            # Actually generate the variations
             iterator = pg.generate("sample", template, args.amount)
             consume_variations(
                 iterator, args.amount, output_dir, "", pb_prefix=pb_prefix

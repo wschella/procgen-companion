@@ -8,13 +8,14 @@ from dataclasses import dataclass, field
 class SharedOptions:
     seed: int = 1234
     output: Optional[Path] = None
-    prevent_template_copy: bool = False
+    copy_template: bool = True
 
 
 @dataclass
 class SharedBulkOptions:
     ignore_dirs: List[str] = field(default_factory=list)
     ignore_hidden: bool = True
+    flatten: bool = False
 
 
 @dataclass
@@ -133,18 +134,46 @@ class Args:
         # Add shared options for all commands
         for p in [sample, gen, sample_bulk, gen_bulk, count_bulk]:
             group = p.add_argument_group("options")
-            group.add_argument("-s", "--seed", type=int, default=1234)
-            group.add_argument("-o", "--output", type=Path)
             group.add_argument(
-                "--prevent-template-copy", action=argparse.BooleanOptionalAction
+                "-s",
+                "--seed",
+                type=int,
+                default=1234,
+                help="Seed for random number generation.",
+            )
+            group.add_argument(
+                "-o",
+                "--output",
+                type=Path,
+                help="Output directory to save generate variations in.",
+            )
+            group.add_argument(
+                "--copy-template",
+                action=argparse.BooleanOptionalAction,
+                help="Prevent copying the template to the output directory.",
+                default=True,
             )
 
         # Add shared options for bulk commands
         for p in [sample_bulk, gen_bulk, count_bulk]:
             group = p.add_argument_group("bulk options")
-            group.add_argument("-i", "--ignore-dirs", nargs="+", default=[])
             group.add_argument(
-                "--no-ignore-hidden", action="store_false", dest="ignore_hidden"
+                "-i",
+                "--ignore-dirs",
+                nargs="+",
+                default=[],
+                help="Directories to ignore.",
+            )
+            group.add_argument(
+                "--no-ignore-hidden",
+                action="store_false",
+                dest="ignore_hidden",
+                help="Do not ignore hidden folders.",
+            )
+            group.add_argument(
+                "--flatten",
+                action="store_true",
+                help="Flatten the directory structure of the source into a list of files (as opposed to mimicking the structure). Note, if you have identically named files, they will overwrite each other.",
             )
 
         args_raw = vars(parser.parse_args())
