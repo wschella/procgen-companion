@@ -1,5 +1,3 @@
-from typing import *
-
 import procgen_companion.core as pg
 import procgen_companion.cli.args as c
 import procgen_companion.cli.commands as commands

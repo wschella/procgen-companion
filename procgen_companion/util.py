@@ -1,7 +1,7 @@
 from __future__ import annotations
 import itertools
 import collections
-from typing import *
+from typing import Any, Optional, Callable
 
 import yaml
 

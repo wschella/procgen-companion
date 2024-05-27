@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import *
+from typing import Any, List, Type, Optional, Union, Iterator, TypedDict, Dict, Self, Iterable
 
 import yaml
 
@@ -124,7 +124,7 @@ class CustomMappingTag(CustomTag):
         fields = (
             list(dd.items()) if (cls.order is None) else  # Unordered
             [(k, dd[k]) for k in cls.order if k in dd])  # Ordered
-        fields = [(k, v) for k, v in fields if v != None]  # Filter out None values
+        fields = [(k, v) for k, v in fields if v is not None]  # Filter out None values
         return dumper.represent_mapping(f"!{cls.tag}", fields, flow_style=(cls.flow_style == 'flow'))
 
     def __getitem__(self, item: Any) -> Any:

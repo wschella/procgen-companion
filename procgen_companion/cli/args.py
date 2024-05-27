@@ -1,5 +1,5 @@
 import argparse
-from typing import *
+from typing import Optional, Union, List, Literal
 from pathlib import Path
 from dataclasses import dataclass, field
 

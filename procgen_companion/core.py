@@ -1,5 +1,5 @@
 import random
-from typing import *
+from typing import Any, Callable, Iterator, Literal, Tuple
 from pathlib import Path
 
 import yaml

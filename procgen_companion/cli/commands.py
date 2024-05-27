@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import *
+from typing import Optional, Union, List, Iterator
 from pathlib import Path
 
 import tqdm

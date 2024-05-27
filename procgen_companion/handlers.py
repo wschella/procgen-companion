@@ -1,4 +1,4 @@
-from typing import *
+from typing import Any, Callable, Iterator, List, Optional, Tuple, Type, TypeVar, Union, cast, Generic, Iterable, Sequence
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from textwrap import dedent
@@ -109,7 +109,8 @@ class PlainSequence(NodeHandler[list, list], StaticNodeHandler):
         # We need to force early binding of the child here. https://stackoverflow.com/q/7368522/6182278
         child_iterators = [(lambda c=child: iterate(c)) for child in node]
         product_generator = util.product(*child_iterators)
-        extract = lambda variation: (extract_children(variation), extract_meta(variation))
+        def extract(variation):
+            return extract_children(variation), extract_meta(variation)
         return map(extract, product_generator)
 
     @staticmethod
@@ -143,9 +144,8 @@ class PlainMapping(NodeHandler[dict, dict], StaticNodeHandler):
         # Each yield of product_generator is a single variation (but only the dict values).
         product_generator = util.product(*child_iterators)
 
-        extract = lambda variation: (
-            dict(zip(keys, extract_children(variation))),
-            extract_meta(variation))
+        def extract(variation):
+            return dict(zip(keys, extract_children(variation))), extract_meta(variation)
         return map(extract, product_generator)
 
     @staticmethod
@@ -202,9 +202,8 @@ class AnimalAISequence(NodeHandler[tags.CustomSequenceTag, tags.CustomSequenceTa
         child_iterators = [(lambda c=child: iterate(c)) for child in node]
         product_generator = util.product(*child_iterators)
 
-        extract = lambda variation: (
-            type(node)(extract_children(variation)),
-            extract_meta(variation))
+        def extract(variation):
+            return type(node)(extract_children(variation)), extract_meta(variation)
         return map(extract, product_generator)
 
     @staticmethod
@@ -238,9 +237,8 @@ class AnimalAIMapping(NodeHandler[tags.CustomMappingTag, tags.CustomMappingTag],
         # Each yield of product_generator is a single variant (but only the dict values).
         product_generator = util.product(*child_iterators)
 
-        extract = lambda variation: (
-            type(node)(**dict(zip(keys, extract_children(variation)))),
-            extract_meta(variation))
+        def extract(variation):
+            return type(node)(**dict(zip(keys, extract_children(variation)))), extract_meta(variation)
         return map(extract, product_generator)
 
     @staticmethod
@@ -406,7 +404,8 @@ class ProcRepeatChoice(NodeHandler[tags.ProcRepeatChoice, List[Any]], ProcGenNod
 
     @staticmethod
     def iterate(node: tags.ProcRepeatChoice, iterate: Recursor) -> Iterator[Tuple[Any, Meta]]:
-        duplicate = lambda var: [var] + [deepcopy(var) for _ in range(node.amount - 1)]
+        def duplicate(var):
+            return [var] + [deepcopy(var) for _ in range(node.amount - 1)]
         return ((duplicate(var), meta) for var, meta in iterate(node.value))
 
     @staticmethod
@@ -449,7 +448,8 @@ class ProcIf(NodeHandler[tags.ProcIf, util.MutablePlaceholder], ProcGenNodeHandl
 
     @staticmethod
     def sample(node: tags.ProcIf, sample: Recursor) -> WithMeta[util.MutablePlaceholder]:
-        proc_if = lambda root: ProcIf.__resolve_condition(node, root)
+        def proc_if(root):
+            return ProcIf.__resolve_condition(node, root)
         return util.MutablePlaceholder(proc_if), Meta()  # Meta gets filled in second pass.
 
     @staticmethod
@@ -460,7 +460,8 @@ class ProcIf(NodeHandler[tags.ProcIf, util.MutablePlaceholder], ProcGenNodeHandl
 
     @staticmethod
     def iterate(node: tags.ProcIf, iterate: Recursor) -> Iterator[WithMeta[util.MutablePlaceholder]]:
-        proc_if = lambda root: ProcIf.__resolve_condition(node, root)
+        def proc_if(root):
+            return ProcIf.__resolve_condition(node, root)
         placeholder = util.MutablePlaceholder(proc_if)
         return iter([(placeholder, Meta())])
 
@@ -605,7 +606,7 @@ class ConditionResolver():
                 if isinstance(value, util.MutablePlaceholder) and not value.is_filled():
                     # When a !ProcIf refers to another !ProcIf, it might not be filled yet when resolving this condition.
                     value.fill(root)
-        except Exception as e:
+        except Exception:
             raise errors.BaseProcGenError(
                 "NonExistentVariable",
                 f"Could not find variable '{variable}' in Item '{item_id}', " +
