@@ -396,12 +396,36 @@ class ProcIf(CustomMappingTag, ProcGenTag):
         self.labels = labels
         self.default_label = default_label
 
+        if not isinstance(self.cases, list):
+            raise errors.NodeAnnotatedProcGenError(
+                self,
+                "FaultyType",
+                f"!ProcIf `cases` must be a list. Got {type(self.cases)} instead.",
+            )
+
+        if not isinstance(self.then, list):
+            raise errors.NodeAnnotatedProcGenError(
+                self,
+                "FaultyType",
+                f"!ProcIf `then` must be a list. Got {type(self.then)} instead.",
+            )
+
+        n_variables = len(self.value) if isinstance(self.value, list) else 1
+        lengths = [len(case) if isinstance(case, list) else 1 for case in self.cases]
+        if not all(case_length == n_variables for case_length in lengths):
+            raise errors.NodeAnnotatedProcGenError(
+                self,
+                "LengthMismatch",
+                f"!ProcIf `cases` must have the same length as `value`. "
+                + f"Got `value` with length {n_variables} and `cases` with lengths {lengths}.",
+            )
+
         if len(self.then) != len(self.cases):
             raise errors.NodeAnnotatedProcGenError(
                 self,
                 "LengthMismatch",
                 f"!ProcIf `cases` and `then` must have the same length. "
-                + f"Got `cases` with length {len(self.cases)} and `then` with length {len(self.then)}.",
+                + f"Got `cases` with length {len(self.cases)} and `then` with length {lengths}.",
             )
 
         if self.labels and len(self.labels) != len(self.cases):
@@ -436,12 +460,36 @@ class ProcIfLabels(CustomMappingTag):
         self.labels = labels
         self.default = default
 
+        if not isinstance(self.cases, list):
+            raise errors.NodeAnnotatedProcGenError(
+                self,
+                "FaultyType",
+                f"!ProcIf `cases` must be a list. Got {type(self.cases)} instead.",
+            )
+
+        if not isinstance(self.labels, list):
+            raise errors.NodeAnnotatedProcGenError(
+                self,
+                "FaultyType",
+                f"!ProcIf `labels` must be a list. Got {type(self.labels)} instead.",
+            )
+
+        n_variables = len(self.value) if isinstance(self.value, list) else 1
+        lengths = [len(case) if isinstance(case, list) else 1 for case in self.cases]
+        if not all(case_length == n_variables for case_length in lengths):
+            raise errors.NodeAnnotatedProcGenError(
+                self,
+                "LengthMismatch",
+                f"!ProcIf `cases` must have the same length as `value`. "
+                + f"Got `value` with length {n_variables} and `cases` with lengths {lengths}.",
+            )
+
         if self.labels and len(self.labels) != len(self.cases):
             raise errors.NodeAnnotatedProcGenError(
                 self,
                 "LengthMismatch",
                 f"!ProcIf `cases` and `labels` must have the same length. "
-                + f"Got `cases` with length {len(self.cases)} and `then` with length {len(self.labels)}.",
+                + f"Got `cases` with length {len(self.cases)} and `then` with length {lengths}.",
             )
 
 
