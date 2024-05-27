@@ -1,30 +1,36 @@
-[tool.poetry]
-name        = "procgen-companion"
-version     = "0.1.0"
-description = "An AnimalAI companion tool for procedural generation of task varations."
-authors     = ["Wout Schellaert <wout@schellaert.org>"]
-license     = "MIT"
-readme      = "README.md"
-packages    = [{ include = "procgen_companion" }]
+[project]
+name            = "procgen-companion"
+version         = "0.1.0"
+description     = "An AnimalAI companion tool for procedural generation of task variations."
+authors         = [{ name = "Wout Schellaert", email = "wout@schellaert.org" }]
+license         = "MIT"
+readme          = "README.md"
+requires-python = ">=3.11"
+dependencies    = ["PyYAML>=6.0.0", "tqdm>=4.66.4"]
 
-[tool.poetry.dependencies]
-python = "^3.9"
-PyYAML = "^6.0"
-tqdm   = "^4.65.0"
-
-[tool.poetry.scripts]
+[project.scripts]
 procgen = 'procgen_companion.cli.run:run'
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.3.2"
-# > "^0.991" For support of Self type.
-autopep8     = "^2.0.2"
-types-PyYAML = "^6.0.12.10"
-mypy         = "^1.3.0"
+# [tool.poetry.group.dev.dependencies]
+# pytest       = "^8.2.1"
+# types-PyYAML = "^6.0.12.10"
+# mypy         = "^1.10.0"
 
 [build-system]
-requires      = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires      = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+  "mypy>=1.10.0",
+  "types-PyYAML>=6.0.12.20240311",
+  "pytest>=8.2.1",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
 
 [tool.ruff.lint]
 ignore = [
