@@ -1,0 +1,27 @@
+!ArenaConfig
+arenas:
+  0: !Arena
+    pass_mark: 0
+    t: 250
+    items:
+      - !Item
+        name: Agent
+        positions:
+          - !Vector3 { x: !ProcList [1, 3, 9], y: 1, z: !ProcList [1, 3, 9] }
+        rotations:
+          - !ProcIf
+            value: GoodGoal.positions.0.x
+            cases: [!R [1, 3]] # 2 inclusive
+            then: [0]
+            default: 180
+
+      - !Item
+        name: GoodGoal
+        id: GoodGoal
+        positions:
+          - !Vector3
+            x: !ProcList [1, 3, 9]
+            y: 1
+            z: !ProcList [1, 3, 9]
+        sizes:
+          - 4

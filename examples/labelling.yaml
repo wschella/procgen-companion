@@ -1,0 +1,62 @@
+!ArenaConfig
+proc_meta:
+  proc_labels:
+    - !ProcIfLabels
+      value: [agent.positions.0.x, agent.positions.0.z]
+      cases: [[20, 1], [20, 7], [20, !R [10, 20]]]
+      labels: [meta_ex1, meta_ex2, meta_ex3]
+      default: meta_ex_default # Optional
+arenas:
+  0: !Arena
+    pass_mark: 0
+    t: 250
+    items:
+      - !Item
+        name: Agent
+        id: agent
+
+        positions:
+          - !ProcListLabelled
+            - value: !Vector3 { x: 20, y: 0, z: 1 }
+              label: dist_close
+            - value: !Vector3 { x: 20, y: 1, z: 5 }
+              label: dist_close
+            - value: !Vector3 { x: 20, y: 1, z: 10 }
+              label: dist_med
+            - value: !Vector3 { x: 20, y: 0, z: 39 }
+              label: dist_med
+            - value: !Vector3 { x: 20, y: 1, z: 35 }
+              label: dist_far
+            - value: !Vector3 { x: 20, y: 1, z: 30 }
+              label: dist_far
+
+        rotations:
+          - !ProcIf
+            value: agent.positions.0.y
+            cases: [1]
+            then: [0]
+            labels: [agent_facing_front]
+            default: 180
+            default_label: agent_facing_back
+
+      - !Item
+        name: Wall
+        positions:
+          - !Vector3 { x: 37, y: 0, z: 3 }
+        sizes:
+          - !Vector3 { x: 2.5, y: 0.8, z: 2.5 }
+        colors: !ProcRestrictCombinations
+          amount: 5
+          item:
+            - !ProcColor 10
+        rotations: [90]
+
+      - !Item
+        name: GoodGoal
+        positions:
+          - !Vector3 { x: 3.5, y: 0, z: 19 }
+        sizes:
+          - !ProcVector3Scaled
+            base: !Vector3 { x: 1, y: 1, z: 1 }
+            scales: [1, 2, 3, 4]
+            labels: [goal_small, goal_small, goal_big, goal_big]

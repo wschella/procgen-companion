@@ -1,0 +1,38 @@
+[project]
+name            = "procgen-companion"
+version         = "0.1.0"
+description     = "An AnimalAI companion tool for procedural generation of task variations."
+authors         = [{ name = "Anon Anon", email = "Anon@Anon.org" }]
+license         = "MIT"
+readme          = "README.md"
+requires-python = ">=3.11"
+dependencies    = ["PyYAML>=6.0.0", "tqdm>=4.66.4"]
+
+[project.scripts]
+procgen = 'procgen_companion.cli.run:run'
+
+# [tool.poetry.group.dev.dependencies]
+# pytest       = "^8.2.1"
+# types-PyYAML = "^6.0.12.10"
+# mypy         = "^1.10.0"
+
+[build-system]
+requires      = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+  "mypy>=1.10.0",
+  "types-PyYAML>=6.0.12.20240311",
+  "pytest>=8.2.1",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+
+[tool.ruff.lint]
+ignore = [
+  "F541", # We don't mind empty f-strings.
+]

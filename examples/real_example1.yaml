@@ -1,0 +1,146 @@
+!ArenaConfig
+arenas:
+  0: !Arena
+    # We don't want to vary these fields,
+    # so we keep them as is.
+    pass_mark: 0
+    t: 250
+    items:
+      - !Item
+        name: Agent
+
+        # The id is a new field added here to uniquely identify an item or value.
+        # It is used for ProcIf below, and can be associated with a tag, like the ones below, for in the filename.
+        id: agent
+
+        positions:
+          # There was a single Vector3 position here previously.
+          # - !Vector3 {x: 20, y: 0.5, z: 1}
+          # It is replace by this list of options which can take it's place.
+          # One of these options will be selected each time.`.
+          - !ProcList [
+              !Vector3 { x: 20, y: 0, z: 1 },
+              !Vector3 { x: 20, y: 1, z: 5 },
+              !Vector3 { x: 20, y: 1, z: 10 },
+              !Vector3 { x: 20, y: 0, z: 39 },
+              !Vector3 { x: 20, y: 1, z: 35 },
+              !Vector3 { x: 20, y: 1, z: 30 },
+            ]
+
+        # Read as "if value is in range 0 to 20, then select 0 else select the default".
+        # Value is an index string, that starts with an existing id, and then progressively
+        # accesses values of the item represented by that id.
+        # Here, this is the concrete trail explained: Item with id `agent`, the list of positions,
+        # the 0'th element of that list, field z of the Vector3 that will be placed there.
+        rotations:
+          - !ProcIf
+            value: GoodGoal.sizes.0.x
+            cases: [!R [1, 2]] # 2 inclusive
+            then: [0]
+            default: 180
+
+      # In this item, we only vary the color. While the static color was a concrete one,
+      # this !ProcColor will fill in  an amount of different values equal to the number given.
+      # The static item is shown below as a reference. The fields could have been kept as well.
+      # TODO: Add original fields back?
+      - !Item
+        colors:
+          - !ProcColor 5
+
+      - !Item
+        name: Wall
+        positions:
+          - !Vector3 { x: 20, y: 0, z: 20 }
+        rotations: [0]
+        colors:
+          - !RGB { r: 0, g: 0, b: 255 }
+        sizes:
+          - !Vector3 { x: 14, y: 0.5, z: 40 }
+
+      # For this wall, we want to only valy the colors. But the wall is actually
+      # 7 segments of wall. The color should be equal for all segments.
+      # We use !ProcRepeatChoice here to repeat a single random color `amount`times.
+      # !ProcRepeatChoice will thus be replaced by a list of equal colors..
+      # This color can take 10 different values.
+      # Conclusion: There are 10 possible lists of 7 times the same color.
+      - !Item
+        name: Wall
+        positions:
+          - !Vector3 { x: 1.5, y: 0, z: 11.5 }
+          - !Vector3 { x: 4, y: 0, z: 14 }
+          - !Vector3 { x: 6.5, y: 0, z: 16.5 }
+          - !Vector3 { x: 9, y: 0, z: 19 }
+          - !Vector3 { x: 6.5, y: 0, z: 21.5 }
+          - !Vector3 { x: 4, y: 0, z: 24 }
+          - !Vector3 { x: 1.5, y: 0, z: 26.5 }
+        sizes:
+          - !Vector3 { x: 2.5, y: 1, z: 2.5 }
+          - !Vector3 { x: 2.5, y: 1, z: 2.5 }
+          - !Vector3 { x: 2.5, y: 1, z: 2.5 }
+          - !Vector3 { x: 2.5, y: 1, z: 2.5 }
+          - !Vector3 { x: 2.5, y: 1, z: 2.5 }
+          - !Vector3 { x: 2.5, y: 1, z: 2.5 }
+          - !Vector3 { x: 2.5, y: 1, z: 2.5 }
+        colors: !ProcRepeatChoice
+          amount: 7 # The amount of repetitions, i.e. the number of elements in the resulting list.
+          value: !ProcColor 5 # The amount of different values a list item can take.
+        rotations: [90, 90, 90, 90, 90, 90, 90]
+
+      # For this wall we also want to only vary the colors of the segments.
+      # But here, the color of the segments can differ.
+      # The total number of combinations can easily explode.
+      # To prevent that, we wrap the list of random colors in !ProcRestrictCombinations.
+      # For all 8 wall segments in the list, a random color will be chosen from 10 choices.
+      # The choices are made independently.
+      # The total amount of combinations is restricted to 100 walls, with different and varying colors.
+      - !Item
+        name: Wall
+        positions:
+          - !Vector3 { x: 37, y: 0, z: 3 }
+          - !Vector3 { x: 30, y: 0, z: 3 }
+          - !Vector3 { x: 30, y: 0, z: 6 }
+          - !Vector3 { x: 31, y: 0, z: 37 }
+          - !Vector3 { x: 30, y: 0, z: 8 }
+          - !Vector3 { x: 37, y: 0, z: 33 }
+          - !Vector3 { x: 38, y: 0, z: 30 }
+          - !Vector3 { x: 35, y: 0, z: 10 }
+        sizes:
+          - !Vector3 { x: 2.5, y: 0.8, z: 2.5 }
+          - !Vector3 { x: 2.5, y: 0.8, z: 2.5 }
+          - !Vector3 { x: 2.5, y: 0.8, z: 2.5 }
+          - !Vector3 { x: 2.5, y: 0.8, z: 2.5 }
+          - !Vector3 { x: 2.5, y: 0.8, z: 2.5 }
+          - !Vector3 { x: 2.5, y: 0.8, z: 2.5 }
+          - !Vector3 { x: 2.5, y: 0.8, z: 2.5 }
+          - !Vector3 { x: 2.5, y: 0.8, z: 2.5 }
+        colors: !ProcRestrictCombinations
+          amount: 5
+          item:
+            - !ProcColor 10
+            - !ProcColor 10
+            - !ProcColor 10
+            - !ProcColor 10
+            - !ProcColor 10
+            - !ProcColor 10
+            - !ProcColor 10
+            - !ProcColor 10
+        rotations: [90, 90, 90, 90, 90, 90, 90, 90]
+
+      # For these two goals, we want to vary the size of the first one.
+      # We want to have 4 different sizes, between (inclusive) 1 and 4.
+      # All dimension of the goal should scale simultaneously.
+      # Here, !ProcVector3Scaled will be replaced by a !Vector3.
+      # It can take 4 different values, each of which is the base vector
+      # scaled by a number in the [1,4] range.
+      # The scalar is linearly spaced appart.
+      - !Item
+        name: GoodGoal
+        id: GoodGoal
+        positions:
+          - !Vector3 { x: 3.5, y: 0, z: 19 }
+          - !Vector3 { x: 36.5, y: 0, z: 19 }
+        sizes:
+          - !ProcVector3Scaled
+            base: !Vector3 { x: 1, y: 1, z: 1 }
+            scales: [1, 2, 3, 4]
+          - !Vector3 { x: 1.5, y: 1.5, z: 1.5 }
