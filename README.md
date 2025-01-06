@@ -1,5 +1,8 @@
 # Procedural Generation Companion
 
+
+**Deprecated**. See <https://github.com/Kinds-of-Intelligence-CFI/procgen-companion> instead.
+
 A companion tool for the AnimalAI.
 
 Specify task templates and procedurally generate all possible variations.
